@@ -2665,6 +2665,7 @@ body {
   border-radius: 16px;
   margin-bottom: 0.55rem;
   flex-shrink: 0;
+  position: relative;
 }
 .gps-player {
   display: flex;
@@ -2780,6 +2781,132 @@ body {
   background: rgba(155,93,229,0.1);
   border-color: rgba(155,93,229,0.5);
   color: #b07ee0;
+}
+
+.gps-clickable:hover .gps-name { color: rgba(255,255,255,1); }
+.gps-clickable:hover .gps-avatar { transform: scale(1.08); transition: transform 0.18s; }
+.gps-clickable .gps-avatar { transition: transform 0.18s; }
+
+/* Player popup */
+.gps-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  min-width: 200px;
+  max-width: 260px;
+  background: rgba(12,18,30,0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 2px 12px rgba(0,0,0,0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: popupIn 0.18s cubic-bezier(0.34,1.56,0.64,1) both;
+  overflow: hidden;
+}
+.gps-popup.popup-left  { left: 0; transform: none; }
+.gps-popup.popup-right { left: auto; right: 0; transform: none; }
+@keyframes popupIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.94); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+}
+.gps-popup.popup-left  { animation-name: popupInLeft; }
+.gps-popup.popup-right { animation-name: popupInRight; }
+@keyframes popupInLeft  { from { opacity:0; transform: translateY(-6px) scale(0.94); } to { opacity:1; transform: translateY(0) scale(1); } }
+@keyframes popupInRight { from { opacity:0; transform: translateY(-6px) scale(0.94); } to { opacity:1; transform: translateY(0) scale(1); } }
+.gps-popup-arrow {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px; height: 7px;
+  overflow: visible;
+}
+.gps-popup-arrow::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid rgba(255,255,255,0.12);
+}
+.gps-popup-arrow::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid rgba(12,18,30,0.97);
+}
+.gps-popup-inner { padding: 0.85rem 1rem 0.7rem; }
+.gps-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.gps-popup-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
+.gps-popup-avatar.popup-me  { background: linear-gradient(135deg, #1B9AAA, #0a6b79); box-shadow: 0 0 12px rgba(27,154,170,0.4); }
+.gps-popup-avatar.popup-opp { background: linear-gradient(135deg, #7B2CBF, #9B5DE5); box-shadow: 0 0 12px rgba(123,44,191,0.4); }
+.gps-popup-name {
+  font-size: 0.88rem; font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: 0.02em;
+}
+.gps-popup-status {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.15rem;
+}
+.gps-popup-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.gps-popup-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.65);
+  font-size: 0.75rem;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.16s;
+  width: 100%;
+  text-align: left;
+}
+.gps-popup-btn:hover {
+  background: rgba(27,154,170,0.12);
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(27,154,170,0.2);
+}
+.gps-popup-btn.btn-add:hover {
+  background: rgba(155,93,229,0.12);
+  color: #c4a0f0;
+}
+.gps-popup-btn-icon {
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem;
+  background: rgba(255,255,255,0.06);
+  flex-shrink: 0;
 }
 
 /* ── ANSWERS SECTION (below card) ── */
@@ -3508,7 +3635,7 @@ try {
       <!-- ── PLAYER PROFILES STRIP ── -->
       <div class="game-players-strip" id="gamePlayersStrip" style="display:none;">
         <!-- Me -->
-        <div class="gps-player">
+        <div class="gps-player gps-clickable" id="gpsMyPlayer" onclick="openPlayerPopup('me')" style="cursor:pointer;">
           <div class="gps-avatar gps-me" id="gpsMyAvatar">
             <span id="gpsMyLetter">?</span>
             <div class="gps-online-ring"></div>
@@ -3524,17 +3651,29 @@ try {
           <div class="gps-vs-dot"></div>
           <div class="gps-vs-dot"></div>
         </div>
-        <!-- Opponent / Partner - click to reveal actions -->
-        <div class="gps-player gps-right" id="gpsOppPlayer" onclick="toggleGpsActions()" style="cursor:pointer;">
+        <!-- Opponent / Partner -->
+        <div class="gps-player gps-right gps-clickable" id="gpsOppPlayer" onclick="openPlayerPopup('opp')" style="cursor:pointer;">
           <div class="gps-avatar gps-opp" id="gpsOppAvatar">
             <span id="gpsOppLetter">?</span>
           </div>
           <div class="gps-info" style="text-align:right;">
             <div class="gps-name" id="gpsOppName">-</div>
-            <div class="gps-actions" id="gpsActions" style="justify-content:flex-end; display:none;">
-              <button class="gps-action-btn" onclick="event.stopPropagation(); openGpsProfile()" title="View profile">👤 Profile</button>
-              <button class="gps-action-btn gps-add" onclick="event.stopPropagation(); sendGpsFriendRequest()" id="gpsFriendBtn" title="Send friend request">+ Add</button>
+            <div class="gps-tag">opponent</div>
+          </div>
+        </div>
+
+        <!-- Player popup bottom sheet -->
+        <div id="gpsPlayerPopup" class="gps-popup" style="display:none;">
+          <div class="gps-popup-arrow" id="gpsPopupArrow"></div>
+          <div class="gps-popup-inner">
+            <div class="gps-popup-header">
+              <div class="gps-popup-avatar" id="gpsPopupAvatar"><span id="gpsPopupLetter">?</span></div>
+              <div class="gps-popup-info">
+                <div class="gps-popup-name" id="gpsPopupName">-</div>
+                <div class="gps-popup-status" id="gpsPopupStatus">-</div>
+              </div>
             </div>
+            <div class="gps-popup-btns" id="gpsPopupBtns"></div>
           </div>
         </div>
       </div>
@@ -3638,16 +3777,8 @@ try {
                 <span class="opp-answer-check">✓</span>
               </div>
               <div class="opp-answer-body" id="opponentAnswerText"></div>
-              <div id="opponentTranslation" style="display:none;margin-top:0.7rem;padding-top:0.7rem;border-top:1px solid rgba(255,255,255,0.1);position:relative;z-index:1;">
-                <div style="font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(155,93,229,0.7);margin-bottom:0.35rem;display:flex;align-items:center;gap:0.4rem;">
-                  <span id="translationFlag"></span>
-                  <span id="translationLabel">translated</span>
-                </div>
-                <div id="translationText" style="font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.55;"></div>
-              </div>
-              <div id="translatingSpinner" style="display:none;margin-top:0.6rem;align-items:center;gap:0.5rem;opacity:0.5;position:relative;z-index:1;">
-                <div style="width:10px;height:10px;border:1.5px solid rgba(155,93,229,0.5);border-top-color:#9B5DE5;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-                <span style="font-size:0.72rem;color:rgba(255,255,255,0.4);letter-spacing:0.08em;" id="translatingText">translating…</span>
+              <div id="translatingSpinner" style="display:none;margin-top:0.3rem;align-items:center;gap:0.5rem;opacity:0.4;position:relative;z-index:1;">
+                <div style="width:8px;height:8px;border:1.5px solid rgba(155,93,229,0.5);border-top-color:#9B5DE5;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
               </div>
               <div class="opp-answer-shine"></div>
             </div>
@@ -4312,7 +4443,9 @@ function initGlobeCanvas() {
 function getLoggedInName(fallback) {
   const lp = window._localProfile || (typeof _localProfile !== 'undefined' ? _localProfile : null);
   const cu = (typeof currentUser !== 'undefined') ? currentUser : null;
-  return lp?.username || cu?.user_metadata?.full_name || fallback || 'Player';
+  let saved = '';
+  try { saved = localStorage.getItem('playerName') || ''; } catch(e) {}
+  return lp?.username || cu?.user_metadata?.full_name || (typeof state !== 'undefined' && state?.playerName) || saved || fallback || 'Player';
 }
 window.getLoggedInName = getLoggedInName;
 
@@ -9545,7 +9678,7 @@ function updateMatchUI() {
   const p2dot = document.getElementById('player2Dot');
   const playersBar = document.getElementById('playersBar');
 
-  if (p1) p1.textContent = state.playerName || 'You';
+  if (p1) p1.textContent = getLoggedInName(state.playerName) || 'You';
 
   if (state.isOffline) {
     if (playersBar) playersBar.style.display = 'none';
@@ -9922,7 +10055,7 @@ function updateGamePlayersStrip() {
   // Me
   const myName   = isOffline
     ? (offlinePlayers[offlineCurrentTurn]?.name || 'Player')
-    : (state.playerName || state.players?.[0] || 'You');
+    : (getLoggedInName(state.playerName) || state.players?.[0] || 'You');
   const myLetter = myName.charAt(0).toUpperCase();
   const gpsMyName   = document.getElementById('gpsMyName');
   const gpsMyLetter = document.getElementById('gpsMyLetter');
@@ -9945,34 +10078,120 @@ function updateGamePlayersStrip() {
 }
 window.updateGamePlayersStrip = updateGamePlayersStrip;
 
-function toggleGpsActions() {
-  const actions = document.getElementById('gpsActions');
-  if (!actions) return;
-  const isOpen = actions.style.display !== 'none';
-  actions.style.display = isOpen ? 'none' : 'flex';
-  // Close on outside click
-  if (!isOpen) {
-    setTimeout(() => {
-      function closeOnOutside(e) {
-        const player = document.getElementById('gpsOppPlayer');
-        if (player && !player.contains(e.target)) {
-          actions.style.display = 'none';
-          document.removeEventListener('click', closeOnOutside);
-        }
-      }
-      document.addEventListener('click', closeOnOutside);
-    }, 0);
-  }
-}
+function toggleGpsActions() { openPlayerPopup('opp'); }
 window.toggleGpsActions = toggleGpsActions;
 
-function openGpsProfile() {
-  // Show a mini toast with opponent info for now; extend with full modal if needed
+function openGpsProfile() { openPlayerPopup('opp'); }
+window.openGpsProfile = openGpsProfile;
+
+let _gpsPopupTarget = null;
+
+function openPlayerPopup(target) {
+  const popup   = document.getElementById('gpsPlayerPopup');
+  const arrow   = document.getElementById('gpsPopupArrow');
+  const strip   = document.getElementById('gamePlayersStrip');
+  if (!popup || !strip) return;
+
+  // If already open for same target, close it
+  if (_gpsPopupTarget === target && popup.style.display !== 'none') {
+    closePlayerPopup(); return;
+  }
+  _gpsPopupTarget = target;
+
+  const isMe = (target === 'me');
+  const name   = isMe
+    ? (document.getElementById('gpsMyName')?.textContent  || 'You')
+    : (document.getElementById('gpsOppName')?.textContent || '-');
+  const letter = name.charAt(0).toUpperCase();
+
+  if (!isMe && (name === '-' || name === '')) { closePlayerPopup(); return; }
+
+  // Populate popup
+  const popupAvatar = document.getElementById('gpsPopupAvatar');
+  const popupLetter = document.getElementById('gpsPopupLetter');
+  const popupName   = document.getElementById('gpsPopupName');
+  const popupStatus = document.getElementById('gpsPopupStatus');
+  const popupBtns   = document.getElementById('gpsPopupBtns');
+
+  if (popupAvatar) { popupAvatar.className = 'gps-popup-avatar ' + (isMe ? 'popup-me' : 'popup-opp'); }
+  if (popupLetter) popupLetter.textContent = letter;
+  if (popupName)   popupName.textContent   = name;
+  if (popupStatus) popupStatus.textContent = isMe ? 'you · online' : 'opponent · online';
+
+  // Buttons
+  if (popupBtns) {
+    if (isMe) {
+      popupBtns.innerHTML = `
+        <button class="gps-popup-btn" onclick="closePlayerPopup(); goTo('profile')">
+          <span class="gps-popup-btn-icon">👤</span> View my profile
+        </button>`;
+    } else {
+      popupBtns.innerHTML = `
+        <button class="gps-popup-btn" onclick="closePlayerPopup(); _openOppProfileModal()">
+          <span class="gps-popup-btn-icon">👤</span> View profile
+        </button>
+        <button class="gps-popup-btn btn-add" id="gpsPopupAddBtn" onclick="closePlayerPopup(); sendGpsFriendRequest()">
+          <span class="gps-popup-btn-icon">＋</span> Add friend
+        </button>`;
+    }
+  }
+
+  // Position: anchor to clicked player block
+  const anchor = document.getElementById(isMe ? 'gpsMyPlayer' : 'gpsOppPlayer');
+  const stripRect  = strip.getBoundingClientRect();
+  const anchorRect = anchor ? anchor.getBoundingClientRect() : stripRect;
+
+  // Place popup relative to the strip (which is position:relative)
+  const anchorCenterX = anchorRect.left + anchorRect.width / 2 - stripRect.left;
+  const popupWidth = 220;
+
+  // Arrow horizontal position
+  let popupLeft = anchorCenterX - popupWidth / 2;
+  const stripWidth = stripRect.width;
+
+  // Clamp so popup stays inside strip
+  let arrowClass = '';
+  if (popupLeft < 4) { arrowClass = 'popup-left'; popupLeft = 4; }
+  else if (popupLeft + popupWidth > stripWidth - 4) { arrowClass = 'popup-right'; popupLeft = stripWidth - popupWidth - 4; }
+
+  popup.className = 'gps-popup ' + arrowClass;
+  popup.style.left  = popupLeft + 'px';
+  popup.style.right = 'auto';
+  popup.style.top   = 'calc(100% + 8px)';
+
+  // Arrow offset relative to popup
+  const arrowX = anchorCenterX - popupLeft - 7;
+  if (arrow) arrow.style.left = Math.max(14, Math.min(arrowX, popupWidth - 28)) + 'px';
+
+  popup.style.display = 'block';
+
+  // Close on outside click
+  setTimeout(() => {
+    function onOutside(e) {
+      if (!popup.contains(e.target) &&
+          !document.getElementById('gpsMyPlayer')?.contains(e.target) &&
+          !document.getElementById('gpsOppPlayer')?.contains(e.target)) {
+        closePlayerPopup();
+        document.removeEventListener('click', onOutside);
+      }
+    }
+    document.addEventListener('click', onOutside);
+  }, 0);
+}
+window.openPlayerPopup = openPlayerPopup;
+
+function closePlayerPopup() {
+  const popup = document.getElementById('gpsPlayerPopup');
+  if (popup) popup.style.display = 'none';
+  _gpsPopupTarget = null;
+}
+window.closePlayerPopup = closePlayerPopup;
+
+function _openOppProfileModal() {
   const oppName = document.getElementById('gpsOppName')?.textContent || '-';
   if (oppName === '-') return;
   showToast('👤 ' + oppName + "'s profile", 'toast-info', 2500);
 }
-window.openGpsProfile = openGpsProfile;
 
 function sendGpsFriendRequest() {
   const oppName = document.getElementById('gpsOppName')?.textContent || '-';
@@ -10084,56 +10303,40 @@ const GOOGLE_LANG_MAP = {
 let _translateAbortController = null;
 
 async function translateAnswerIfNeeded(text, fromLang, toLang) {
-  // Cancella eventuale traduzione precedente ancora in corso
   if (_translateAbortController) { _translateAbortController.abort(); }
   _translateAbortController = new AbortController();
-  const signal = _translateAbortController.signal;
-  const transEl       = document.getElementById('opponentTranslation');
-  const spinner       = document.getElementById('translatingSpinner');
-  const transText     = document.getElementById('translationText');
-  const transFlag     = document.getElementById('translationFlag');
-  const transLabel    = document.getElementById('translationLabel');
-  const transLabelText= document.getElementById('translatingText');
+  const signal  = _translateAbortController.signal;
+  const spinner = document.getElementById('translatingSpinner');
+  const ansEl   = document.getElementById('opponentAnswerText');
 
-  // Same language - no translation needed
+  // Same language — no translation needed
   if (!fromLang || !toLang || fromLang === toLang) {
-    if (transEl) transEl.style.display = 'none';
     if (spinner) spinner.style.display = 'none';
     return;
   }
 
-  const myLang  = LANGUAGES.find(l => l.code === toLang);
-  const myFlag  = myLang ? myLang.flag : '🌍';
-  const t       = state._uiText || UI_TEXT['en'];
   const gSource = GOOGLE_LANG_MAP[fromLang] || fromLang;
   const gTarget = GOOGLE_LANG_MAP[toLang]   || toLang;
 
-  // Show spinner
-  if (spinner) { spinner.style.display = 'flex'; }
-  if (transEl) transEl.style.display = 'none';
-  if (transFlag)     transFlag.textContent     = myFlag;
-  if (transLabel)    transLabel.textContent    = t.translated  || 'translated';
-  if (transLabelText)transLabelText.textContent= t.translating || 'translating…';
+  if (spinner) spinner.style.display = 'flex';
 
   try {
-    // Google Translate unofficial API - no key required, free tier
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${gSource}&tl=${gTarget}&dt=t&q=${encodeURIComponent(text)}`;
     const response = await fetch(url, { signal });
     if (signal.aborted) return;
     const data = await response.json();
 
-    // Response format: [[[translated, original, ...], ...], ...]
     const translated = data[0]
       ? data[0].map(seg => seg[0]).filter(Boolean).join('')
       : null;
 
     if (spinner) spinner.style.display = 'none';
+    // Replace opponent answer text directly — same style, no labels
     if (translated && translated.trim() !== text.trim()) {
-      if (transText) transText.textContent = translated.trim();
-      if (transEl)   transEl.style.display  = 'block';
+      if (ansEl) ansEl.textContent = translated.trim();
     }
   } catch(e) {
-    if (e.name === 'AbortError') return; // traduzione annullata, nessun problema
+    if (e.name === 'AbortError') return;
     if (spinner) spinner.style.display = 'none';
     console.warn('Translation failed:', e);
   }
@@ -10180,7 +10383,7 @@ function _resetRoundUI() {
   if (collapsedBtn) collapsedBtn.style.display = 'none';
   const gameArea = document.getElementById('offlineGameArea');
   if (gameArea) gameArea.style.display = '';
-  ['myAnswerBox','typingIndicator','opponentAnswerBox','opponentTranslation','translatingSpinner','chatArea']
+  ['myAnswerBox','typingIndicator','opponentAnswerBox','translatingSpinner','chatArea']
     .forEach(id => { const el = document.getElementById(id); if (el) { el.style.display = 'none'; if (id === 'opponentAnswerBox') el.className = 'opponent-answer-box'; } });
   const btnNext = document.getElementById('btnNextQ');
   if (btnNext) { btnNext.classList.remove('pressed'); btnNext.style.display = 'none'; }
