@@ -2248,7 +2248,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: radial-gradient(ellipse at center, rgba(10,26,31,0.97) 0%, rgba(5,10,15,0.99) 100%);
+  background: radial-gradient(ellipse at center, rgba(220,242,248,0.98) 0%, rgba(235,248,252,0.99) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2257,13 +2257,15 @@ body {
   animation: fadeIn 0.3s ease;
 }
 .modal-box {
-  background: radial-gradient(ellipse at 50% 40%, #0a1a1f 0%, #071318 40%, #050a0f 100%);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 1.2rem 2rem 2rem 2rem;
   border-radius: 24px;
   max-width: 420px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-  border: 1px solid var(--white-15);
+  box-shadow: 0 20px 60px rgba(27,154,170,0.12), 0 4px 24px rgba(0,0,0,0.08);
+  border: 1px solid rgba(72,202,228,0.25);
 }
 .modal-title {
   font-family: 'Cormorant Garamond', serif;
@@ -2296,7 +2298,7 @@ body {
   padding: 1.1rem;
   border: 1px solid var(--white-15);
   border-radius: 16px;
-  color: white;
+  color: #0a1a2e;
   font-family: 'DM Sans', sans-serif;
   font-size: 1rem;
   margin-bottom: 0.8rem;
@@ -2310,42 +2312,42 @@ body {
   box-sizing: border-box;
 }
 .mode-btn.solo-btn {
-  background: linear-gradient(135deg, rgba(27,154,170,0.25), rgba(27,154,170,0.1));
-  border-color: rgba(27,154,170,0.4);
-  box-shadow: 0 4px 20px rgba(27,154,170,0.2);
+  background: linear-gradient(135deg, rgba(27,154,170,0.18), rgba(72,202,228,0.08));
+  border-color: rgba(27,154,170,0.45);
+  box-shadow: 0 4px 20px rgba(27,154,170,0.15);
 }
 .mode-btn.online-btn {
-  background: linear-gradient(135deg, rgba(155,93,229,0.25), rgba(155,93,229,0.1));
+  background: linear-gradient(135deg, rgba(155,93,229,0.15), rgba(155,93,229,0.06));
   border-color: rgba(155,93,229,0.4);
-  box-shadow: 0 4px 20px rgba(155,93,229,0.2);
+  box-shadow: 0 4px 20px rgba(155,93,229,0.15);
 }
 .mode-btn.room-btn {
-  background: linear-gradient(135deg, rgba(255,180,50,0.2), rgba(255,140,30,0.08));
-  border-color: rgba(255,180,50,0.4);
-  box-shadow: 0 4px 20px rgba(255,160,40,0.15);
+  background: linear-gradient(135deg, rgba(255,180,50,0.18), rgba(255,140,30,0.07));
+  border-color: rgba(255,180,50,0.45);
+  box-shadow: 0 4px 20px rgba(255,160,40,0.12);
 }
 .mode-btn:hover, .mode-btn:active {
   transform: translateY(-2px);
 }
 .mode-btn.solo-btn:hover, .mode-btn.solo-btn:active {
-  background: linear-gradient(135deg, rgba(27,154,170,0.32), rgba(27,154,170,0.17));
-  border-color: rgba(125,249,240,0.75);
-  box-shadow: 0 4px 24px rgba(27,154,170,0.35), 0 0 12px rgba(125,249,240,0.2);
+  background: linear-gradient(135deg, rgba(27,154,170,0.28), rgba(72,202,228,0.14));
+  border-color: rgba(27,154,170,0.75);
+  box-shadow: 0 4px 24px rgba(27,154,170,0.28), 0 0 12px rgba(125,249,240,0.15);
 }
 .mode-btn.online-btn:hover, .mode-btn.online-btn:active {
-  background: linear-gradient(135deg, rgba(155,93,229,0.32), rgba(155,93,229,0.17));
-  border-color: rgba(200,130,255,0.75);
-  box-shadow: 0 4px 24px rgba(155,93,229,0.35), 0 0 12px rgba(200,130,255,0.2);
+  background: linear-gradient(135deg, rgba(155,93,229,0.24), rgba(155,93,229,0.12));
+  border-color: rgba(155,93,229,0.7);
+  box-shadow: 0 4px 24px rgba(155,93,229,0.28), 0 0 12px rgba(200,130,255,0.15);
 }
 .mode-btn.room-btn:hover, .mode-btn.room-btn:active {
-  background: linear-gradient(135deg, rgba(255,180,50,0.28), rgba(255,140,30,0.15));
-  border-color: rgba(255,213,128,0.75);
-  box-shadow: 0 4px 24px rgba(255,160,40,0.3), 0 0 12px rgba(255,213,128,0.2);
+  background: linear-gradient(135deg, rgba(255,180,50,0.28), rgba(255,140,30,0.13));
+  border-color: rgba(255,180,50,0.7);
+  box-shadow: 0 4px 24px rgba(255,160,40,0.25), 0 0 12px rgba(255,213,128,0.15);
 }
 .mode-btn .mode-emoji { font-size: 1.6rem; }
 .mode-btn .mode-icon { width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .mode-btn .mode-title { font-weight: 500; font-size: 1rem; margin-bottom: 0.2rem; }
-.mode-btn .mode-sub { font-size: 0.78rem; opacity: 0.7; font-weight: 300; }
+.mode-btn .mode-sub { font-size: 0.78rem; opacity: 0.6; font-weight: 300; }
 
 /* ── PRIVATE ROOM OVERLAY ── */
 .room-overlay {
@@ -4620,7 +4622,7 @@ function authGoBackWithAnim() {
     z-index:9999;
     pointer-events:none;
     will-change:transform;
-    transform:translate(-50%,-51%) scale(1);
+    transform:translate(-50%,-49%) scale(1);
   `;
   document.body.appendChild(overlay);
 
@@ -4635,7 +4637,7 @@ function authGoBackWithAnim() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     overlay.style.transition = 'transform 0.48s cubic-bezier(0.4,0,0.2,1)';
     const scale = 130 / targetSize;
-    overlay.style.transform = `translate(-50%,-51%) scale(${scale})`;
+    overlay.style.transform = `translate(-50%,-49%) scale(${scale})`;
   }));
 
   setTimeout(() => overlay.remove(), 500);
@@ -4880,7 +4882,7 @@ function showModeSelection() {
   modal.innerHTML = `
     <div class="modal-box">
       <div style="display:flex;align-items:center;margin-bottom:0.8rem;" class="mode-back-fade">
-        <button onclick="closeModeModal();goTo('welcome')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);border-radius:50%;color:rgba(255,255,255,0.6);font-size:1.1rem;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;flex-shrink:0;transition: opacity 0.25s ease, transform 0.25s ease;box-shadow:0 0 0 0 rgba(255,255,255,0.08);" class="hover-white-btn">
+        <button onclick="backFromModeModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.14);border-radius:50%;color:rgba(255,255,255,0.6);font-size:1.1rem;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;flex-shrink:0;transition: opacity 0.25s ease, transform 0.25s ease;box-shadow:0 0 0 0 rgba(255,255,255,0.08);" class="hover-white-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
       </div>
@@ -5258,6 +5260,42 @@ function closeModeModal() {
   m.style.pointerEvents = 'none';
   setTimeout(() => m.remove(), 160);
 }
+
+function backFromModeModal() {
+  const m = document.getElementById('modeModal');
+  if (m) m.style.pointerEvents = 'none';
+
+  const targetSize = Math.min(window.innerWidth * 0.88, window.innerHeight * 0.88);
+
+  // Overlay cerchio: parte grande (copre tutto) e si restringe al cerchio piccolo
+  const overlay = document.createElement('div');
+  overlay.style.cssText = [
+    'position:fixed',
+    'top:50%', 'left:50%',
+    'width:' + targetSize + 'px', 'height:' + targetSize + 'px',
+    'border-radius:50%',
+    'background:radial-gradient(circle at 38% 35%, rgba(72,202,228,0.55), rgb(0,15,40))',
+    'border:2px solid rgba(72,202,228,0.85)',
+    'z-index:99999',
+    'pointer-events:none',
+    'will-change:transform',
+    'transform:translate(-50%,-49%) scale(' + (Math.sqrt(window.innerWidth**2 + window.innerHeight**2) * 2 / targetSize) + ')',
+    'transition:none'
+  ].join(';');
+  document.body.appendChild(overlay);
+
+  if (m) m.remove();
+  goTo('welcome');
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    overlay.style.transition = 'transform 0.48s cubic-bezier(0.4,0,0.2,1)';
+    const scale = 130 / targetSize;
+    overlay.style.transform = 'translate(-50%,-49%) scale(' + scale + ')';
+  }));
+
+  setTimeout(() => overlay.remove(), 510);
+}
+window.backFromModeModal = backFromModeModal;
 
 // ══════════════════════════════════════════
 //  PRIVATE ROOM
@@ -14073,11 +14111,42 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
     currentUser = null; updateUserPill(null);
     window._authCompleted = true;
     state._authReturnTo = null;
-    goTo('welcome');
-    // After welcome transition completes, show name modal or mode selection
+
+    // Dimensione iniziale del cerchio (già espanso come quando si è arrivati qui)
+    const targetSize = Math.min(window.innerWidth * 0.88, window.innerHeight * 0.88);
+
+    // Crea overlay cerchio già grande, poi espandilo a coprire tutto
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position:fixed;
+      top:50%; left:50%;
+      width:${targetSize}px; height:${targetSize}px;
+      border-radius:50%;
+      background:radial-gradient(circle at 38% 35%, rgba(72,202,228,0.55), rgb(0,15,40));
+      border:2px solid rgba(72,202,228,0.85);
+      z-index:9999;
+      pointer-events:none;
+      will-change:transform,border-radius;
+      transform:translate(-50%,-49%) scale(1);
+      transition:none;
+    `;
+    document.body.appendChild(overlay);
+
+    // Frame successivo: espandi a coprire tutto lo schermo
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      overlay.style.transition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1), border-radius 0.45s cubic-bezier(0.4,0,0.2,1)';
+      const maxDim = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2) * 2;
+      const scale = maxDim / targetSize;
+      overlay.style.transform = `translate(-50%,-49%) scale(${scale})`;
+      overlay.style.borderRadius = '0';
+    }));
+
     setTimeout(() => {
+      // Naviga e mostra contenuto
+      goTo('welcome');
+      overlay.remove();
+
       const savedName = (() => { try { return localStorage.getItem('playerName') || ''; } catch(e) { return ''; } })();
-      // Se ha già un nome salvato, vai diretto alla selezione modalità
       if (savedName) {
         state.playerName = savedName;
         showModeSelection();
@@ -14093,9 +14162,9 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
           <div class="room-title" style="color:#48CAE4;">How should we call you?</div>
           <input id="guestNameInput" class="room-input room-input-cyan" type="text" maxlength="20"
             value=""
-            placeholder="${t.onlineNamePlaceholder || 'your name…'}"
+            placeholder="${t.onlineNamePlaceholder || 'your name\u2026'}"
             onkeydown="if(event.key==='Enter') window._submitGuestName()"/>
-          <button class="room-icon-btn room-btn-cyan" onclick="window._submitGuestName()">${t.onlineNameBtn || 'Enter →'}</button>
+          <button class="room-icon-btn room-btn-cyan" onclick="window._submitGuestName()">${t.onlineNameBtn || 'Enter \u2192'}</button>
         </div>`;
       document.body.appendChild(m);
       setTimeout(() => {
@@ -14114,7 +14183,7 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
         document.getElementById('guestNameModal')?.remove();
         showModeSelection();
       };
-    }, 500);
+    }, 460);
   }
   window.continueAsGuest = continueAsGuest;
 
@@ -16199,39 +16268,29 @@ document.addEventListener('visibilitychange', () => {
     resetToSmall(false); // già a 130px, solo ripristina stile
   }
 
-  // ── Click ──
-  btn.addEventListener('click', function() {
+  // ── Core expand+shrink logic (shared by click and external callers) ──
+  function doExpand(onMidpoint) {
     if (state !== 'idle') return;
     state = 'expanding';
     clearTimers();
 
-    // Fade out icona/testo
     btn.querySelectorAll('svg, span').forEach(el => {
       el.style.transition = 'opacity 0.15s ease';
       el.style.opacity    = '0';
     });
 
-    // Espansione verso min(88vw,88vh)
     const targetPx = Math.min(window.innerWidth * 0.88, window.innerHeight * 0.88);
     setSize(targetPx, 'width 0.5s cubic-bezier(0.4,0,0.2,1), height 0.5s cubic-bezier(0.4,0,0.2,1), margin 0.5s cubic-bezier(0.4,0,0.2,1)');
 
     _pendingTimers.push(setTimeout(() => {
-      // Mostra schermata
-      showModeSelection();
-      const authEl = document.getElementById('auth-screen');
-      if (authEl && authEl.classList.contains('active')) {
-        authEl.classList.add('circle-reveal');
-        _pendingTimers.push(setTimeout(() => authEl.classList.remove('circle-reveal'), 600));
-      }
+      if (onMidpoint) onMidpoint();
 
-      // Restringimento — transitionend gestisce la fine in modo preciso
       state = 'shrinking';
       const shrinkMs = 500;
       setSize(130, `width ${shrinkMs}ms cubic-bezier(0.4,0,0.1,1), height ${shrinkMs}ms cubic-bezier(0.4,0,0.1,1), margin ${shrinkMs}ms cubic-bezier(0.4,0,0.1,1)`);
 
       wrapper.addEventListener('transitionend', onShrinkEnd);
 
-      // Fade-in icona/testo a 55% del restringimento
       _pendingTimers.push(setTimeout(() => {
         btn.querySelectorAll('svg, span').forEach(el => {
           el.style.transition = 'opacity 0.22s ease';
@@ -16239,13 +16298,27 @@ document.addEventListener('visibilitychange', () => {
         });
       }, Math.round(shrinkMs * 0.55)));
 
-      // Fallback: se transitionend non scatta (tab in background, ecc.)
       _pendingTimers.push(setTimeout(() => {
         wrapper.removeEventListener('transitionend', onShrinkEnd);
         if (state === 'shrinking') resetToSmall(false);
       }, shrinkMs + 120));
 
     }, 480));
+  }
+
+  // Expose for external callers (e.g. continueAsGuest)
+  window.triggerLetsPlayAnim = function(callback) { doExpand(callback); };
+
+  // ── Click ──
+  btn.addEventListener('click', function() {
+    doExpand(() => {
+      showModeSelection();
+      const authEl = document.getElementById('auth-screen');
+      if (authEl && authEl.classList.contains('active')) {
+        authEl.classList.add('circle-reveal');
+        setTimeout(() => authEl.classList.remove('circle-reveal'), 600);
+      }
+    });
   });
 
 })();
