@@ -4964,6 +4964,9 @@ window.authGoBackWithAnim = authGoBackWithAnim;
 //    net()          — log tutte le chiamate fetch finora
 //    leaks()        — analisi memory/canvas leaks
 //    trace(n)       — ultimi n eventi (default 50)
+//    render()       — snapshot visivo DOM attivo
+//    gameFlow()     — timer end-to-end click→card visibile
+//    exportDebug()  — copia JSON completo negli appunti
 //    dbgOff()       — disattiva tutto il debug
 // ══════════════════════════════════════════════════════════════
 window._DBG = true;
@@ -5351,7 +5354,59 @@ window.debug = function() {
   console.log('  backPinned   :', typeof _globalBackPinned!=='undefined'?_globalBackPinned:'?');
   console.log('  goToLocked   :', _goToLocked);
   _cge();
-  _cg('PERFORMANCE');
+  _cg('MATCHMAKING');
+  var _mwait = window._dbgMetrics._matchStart ? ((performance.now()-window._dbgMetrics._matchStart)/1000).toFixed(1)+'s' : 'n/a';
+  console.log('  isWaiting    :', state.isWaitingForMatch);
+  console.log('  matchFound   :', state._matchFound);
+  console.log('  creating     :', state._creating);
+  console.log('  inQueue      :', state._inQueue);
+  console.log('  queueId      :', state._myQueueId||'none');
+  console.log('  waitTime     :', _mwait);
+  console.log('  opponentName :', state.opponentName||'none');
+  console.log('  opponentId   :', state.opponentId ? state.opponentId.substring(0,16)+'…' : 'none');
+  console.log('  amPlayer1    :', state.amPlayer1);
+  console.log('  isMyTurn     :', state.isMyTurn);
+  var matchEvts = (window._dbgEvents||[]).filter(function(e){return e.type==='match';});
+  if (matchEvts.length) console.log('  match events :', matchEvts.map(function(e){return '['+e.t+'s] '+e.msg;}).join('\n               '));
+  _cge();
+  _cg('PRIVATE ROOM');
+  var roomEvts = (window._dbgEvents||[]).filter(function(e){return e.type==='room';});
+  console.log('  isRoomHost   :', state._isRoomHost || false);
+  console.log('  roomCode     :', state._roomCode || 'none');
+  console.log('  roomId       :', state._roomId || 'none');
+  console.log('  guestListener:', state._roomGuestListener || false);
+  console.log('  roomChannel  :', state._roomChannel ? (state._roomChannel.state||'?') : 'none');
+  var roomWait = window._dbgMetrics._roomStart ? ((performance.now()-window._dbgMetrics._roomStart)/1000).toFixed(1)+'s' : 'n/a';
+  console.log('  waitTime     :', roomWait);
+  if (roomEvts.length) console.log('  room events  :', roomEvts.map(function(e){return '['+e.t+'s] '+e.msg;}).join('\n               '));
+  _cge();
+  _cg('GAME ACTIVITY');
+  var gameEvts = (window._dbgEvents||[]).filter(function(e){return e.type==='game';});
+  console.log('  questionIndex:', state.questionIndex);
+  console.log('  gameStarted  :', typeof gameStarted!=='undefined'?gameStarted:'?');
+  console.log('  isMyTurn     :', state.isMyTurn);
+  console.log('  answerSubmit :', state.answerSubmitted);
+  console.log('  advancingNow :', state._advancingNow);
+  console.log('  deckSize     :', typeof shuffledDeck!=='undefined'?shuffledDeck.length:'?');
+  if (gameEvts.length) console.log('  game events  :', gameEvts.slice(-10).map(function(e){return '['+e.t+'s] '+e.msg;}).join('\n               '));
+  _cge();
+  _cg('AUTH & PROFILE');
+  var cu = (typeof window._getCurrentUser === 'function') ? window._getCurrentUser() : null;
+  var lp = window._localProfile || {};
+  console.log('  authCompleted:', window._authCompleted || false);
+  console.log('  userType     :', cu ? '🔐 logged in (' + (cu.email||cu.id?.substring(0,12)||'?') + ')' : '👤 guest');
+  console.log('  username     :', lp.username || '(none)');
+  console.log('  sessions     :', lp.sessions_played || 0);
+  console.log('  questions    :', lp.questions_answered || 0);
+  console.log('  supabase     :', window.supabaseClient ? '✅ ready' : '❌ not init');
+  var authEvts = (window._dbgEvents||[]).filter(function(e){return e.type==='auth';});
+  if (authEvts.length) console.log('  auth events  :', authEvts.map(function(e){return '['+e.t+'s] '+e.msg;}).join('\n               '));
+  _cge();
+  _cg('UI SCREENS');
+  var uiEvts = (window._dbgEvents||[]).filter(function(e){return e.type==='ui';});
+  if (uiEvts.length) console.log('  ui events    :', uiEvts.map(function(e){return '['+e.t+'s] '+e.msg;}).join('\n               '));
+  else console.log('  (nessun evento ui ancora)');
+  _cge();
   var avgFps = m.fps.length?(m.fps.reduce(function(a,b){return a+b;},0)/m.fps.length).toFixed(1):'?';
   console.log('  FPS (avg)    :', avgFps, '| drops:', m.fpsDrops);
   console.log('  Jank frames  :', m.jankFrames, '| freezes:', m.freezes);
@@ -5448,8 +5503,192 @@ window.dbgOff = function() {
   console.log('%c🔕 Debug disattivato', 'color:#aaa');
 };
 
-// ── Transition lock: prevents overlapping goTo calls ──
-let _goToLocked = false;
+// ── 14. FINAL WATCHDOG — controlla tutto ogni 10s ──
+(function() {
+  if (!window._DBG) return;
+  var _prevScreen = null;
+  var _screenStuckSince = null;
+  var _prevCanvasCount = 0;
+
+  setInterval(function() {
+    if (typeof state === 'undefined') return;
+    var issues = [];
+    var warnings = [];
+
+    // Screen stuck? (stesso screen da >2min senza navigazione)
+    if (state.currentScreen === _prevScreen) {
+      if (!_screenStuckSince) _screenStuckSince = performance.now();
+      var stuckSec = (performance.now() - _screenStuckSince) / 1000;
+      if (stuckSec > 120 && state.currentScreen !== 'game' && state.currentScreen !== 'welcome') {
+        warnings.push('screen "' + state.currentScreen + '" aperto da ' + stuckSec.toFixed(0) + 's');
+      }
+    } else {
+      _prevScreen = state.currentScreen;
+      _screenStuckSince = null;
+    }
+
+    // goTo bloccato
+    if (typeof _goToLocked !== 'undefined' && _goToLocked) {
+      if (!window._lockSince) window._lockSince = performance.now();
+      var lockedSec = (performance.now() - window._lockSince) / 1000;
+      if (lockedSec > 5) issues.push('⚠️ goToLocked da ' + lockedSec.toFixed(1) + 's — navigazione bloccata!');
+    } else { window._lockSince = null; }
+
+    // _advancingNow stuck
+    if (state._advancingNow) {
+      if (!window._advanceSince) window._advanceSince = performance.now();
+      var advSec = (performance.now() - window._advanceSince) / 1000;
+      if (advSec > 10) issues.push('⚠️ _advancingNow da ' + advSec.toFixed(1) + 's — partita bloccata!');
+    } else { window._advanceSince = null; }
+
+    // Canvas count spike
+    var canvasCount = document.querySelectorAll('canvas').length;
+    if (canvasCount > _prevCanvasCount + 3) {
+      warnings.push('canvas spike: ' + _prevCanvasCount + '→' + canvasCount);
+    }
+    _prevCanvasCount = canvasCount;
+
+    // Match channel down durante partita
+    if (state.matchId && state._matchChannel) {
+      var chState = state._matchChannel.state;
+      if (chState === 'closed' || chState === 'errored') {
+        issues.push('📡 match channel ' + chState + ' durante partita!');
+      }
+    }
+
+    // Presenza down durante partita
+    if (state.matchId && state._presenceChannel) {
+      var pState = state._presenceChannel.state;
+      if (pState === 'closed' || pState === 'errored') {
+        warnings.push('presence channel ' + pState);
+      }
+    }
+
+    // Timer matchmaking troppo lungo
+    if (window._dbgMetrics._matchStart) {
+      var waitMin = (performance.now() - window._dbgMetrics._matchStart) / 60000;
+      if (waitMin > 2) warnings.push('matchmaking in attesa da ' + waitMin.toFixed(1) + 'min');
+    }
+
+    // Room timeout imminente
+    if (state._roomHostTimeout && state._roomStart) {
+      var roomMin = (performance.now() - window._dbgMetrics._roomStart) / 60000;
+      if (roomMin > 4) warnings.push('room scade tra ' + ((5-roomMin)*60).toFixed(0) + 's');
+    }
+
+    // Memory alta
+    if (performance.memory) {
+      var pct = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+      if (pct > 75) issues.push('🧠 heap al ' + pct.toFixed(0) + '% del limite!');
+    }
+
+    // Stampa
+    if (issues.length) {
+      _ce('%c🚨 WATCHDOG ISSUES (' + issues.length + '): ' + issues.join(' | '), 'color:#ff5252;font-weight:bold');
+      issues.forEach(function(i) { _dbgEvent('watchdog', i, '#ff5252'); });
+    }
+    if (warnings.length) {
+      _cw('%c⚠️ WATCHDOG WARNINGS: ' + warnings.join(' | '), 'color:#ffd580');
+      warnings.forEach(function(w) { _dbgEvent('watchdog', w, '#ffd580'); });
+    }
+  }, 10000);
+})();
+
+// ── 15. IN-APP DEBUG OVERLAY — per mobile senza DevTools ──
+// Attiva con: overlay()  |  Chiudi con: tap sulla X
+window.overlay = (function() {
+  var _ov = null;
+  var _interval = null;
+
+  return function() {
+    if (_ov) { _ov.remove(); _ov = null; clearInterval(_interval); return; }
+
+    _ov = document.createElement('div');
+    _ov.style.cssText = [
+      'position:fixed', 'bottom:0', 'left:0', 'right:0',
+      'max-height:42vh', 'overflow-y:auto',
+      'background:rgba(0,0,0,0.92)',
+      'color:#e0e0e0', 'font-family:monospace', 'font-size:11px',
+      'line-height:1.5', 'padding:8px 10px 12px',
+      'z-index:999999', 'border-top:1px solid rgba(255,255,255,0.1)',
+      'backdrop-filter:blur(4px)', '-webkit-backdrop-filter:blur(4px)',
+      'box-sizing:border-box'
+    ].join(';');
+
+    // Header row
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.1);';
+    hdr.innerHTML = '<span style="color:#c084fc;font-weight:bold;font-size:12px;">🔬 DEBUG OVERLAY</span>' +
+      '<span style="display:flex;gap:8px;">' +
+      '<button onclick="exportDebug()" style="background:rgba(72,202,228,0.2);border:1px solid rgba(72,202,228,0.4);color:#48CAE4;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer;">export</button>' +
+      '<button onclick="window.overlay()" style="background:rgba(255,82,82,0.2);border:1px solid rgba(255,82,82,0.4);color:#ff5252;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer;">✕ close</button>' +
+      '</span>';
+    _ov.appendChild(hdr);
+
+    var content = document.createElement('div');
+    _ov.appendChild(content);
+    document.body.appendChild(_ov);
+
+    function _renderStats() {
+      if (!_ov) return;
+      var m = window._dbgMetrics || {};
+      var s = (typeof state !== 'undefined') ? state : {};
+      var cu = (typeof window._getCurrentUser === 'function') ? window._getCurrentUser() : null;
+      var lp = window._localProfile || {};
+      var fps = m.fps && m.fps.length ? m.fps[m.fps.length-1] : '…';
+      var fpsColor = fps >= 55 ? '#00e676' : fps >= 30 ? '#ffd580' : '#ff5252';
+      var mem = performance.memory ? (performance.memory.usedJSHeapSize/1048576).toFixed(1)+'MB' : 'n/a';
+      var canvas = document.querySelectorAll('canvas').length;
+
+      // Last 12 events
+      var evts = (window._dbgEvents||[]).slice(-12);
+      var evtHtml = evts.map(function(e) {
+        return '<div style="color:' + (e.color||'#aaa') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+          '<span style="color:#555;">[' + e.t + 's]</span> ' +
+          '<span style="color:#777;">' + e.type.toUpperCase() + '</span> ' + e.msg + '</div>';
+      }).join('');
+
+      content.innerHTML =
+        // Row 1: screen + fps + mem
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px;">' +
+          '<span>📍 <b style="color:#48CAE4">' + (s.currentScreen||'?') + '</b></span>' +
+          '<span>📊 FPS: <b style="color:' + fpsColor + '">' + fps + '</b></span>' +
+          '<span>🧠 ' + mem + '</span>' +
+          '<span>🎨 ' + canvas + ' canvas</span>' +
+          '<span>🔒 lock:' + (typeof _goToLocked!=='undefined'?_goToLocked:'?') + '</span>' +
+        '</div>' +
+        // Row 2: auth + match
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px;">' +
+          '<span>' + (cu ? '🔐 ' + (lp.username||cu.email||'?') : '👤 guest') + '</span>' +
+          '<span>' + (s.matchId ? '🎮 match: ' + s.matchId.substring(6,18) : s.isWaitingForMatch ? '⏳ searching…' : s._roomCode ? '🏠 room: ' + s._roomCode : '—') + '</span>' +
+          '<span>q#' + (s.questionIndex||0) + (s.isMyTurn?' 🟢turn':'') + '</span>' +
+          (s._advancingNow ? '<span style="color:#ff5252">⚠️ advancing</span>' : '') +
+        '</div>' +
+        // Row 3: network
+        '<div style="margin-bottom:5px;">' +
+          '🌐 fetch: ' + (m.fetchCalls?m.fetchCalls.length:0) + ' calls' +
+          (m.fetchFails ? ' | <span style="color:#ff5252">❌ ' + m.fetchFails + ' fails</span>' : ' | ✅ ok') +
+          ' | errors: ' + (m.jsErrors||0) +
+          (window._dbgVitals&&window._dbgVitals.FCP ? ' | FCP: ' + window._dbgVitals.FCP : '') +
+        '</div>' +
+        // Row 4: event log
+        '<div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:4px;font-size:10px;">' + evtHtml + '</div>';
+    }
+
+    _renderStats();
+    _interval = setInterval(_renderStats, 1000);
+  };
+})();
+
+// ── 16. PRODUCTION BUILD HELPER ──
+// Chiama stripDebug() per generare il codice senza debug (per il deploy)
+window.stripDebug = function() {
+  console.log('%c⚠️ stripDebug: questa funzione rimuove il debug dal sorgente.', 'color:#ffd580');
+  console.log('%cPer disattivare solo i log: dbgOff()', 'color:#aaa');
+  console.log('%cPer il deploy, imposta window._DBG = false prima del build.', 'color:#aaa');
+};
+
+
 let _goToPending = null;
 
 var _backActions = {
@@ -5755,8 +5994,8 @@ window.gameFlow = function() {
   console.log('%c🏁 gameFlow attivato — clicca "In Person" per avviare', 'color:#00e676;font-weight:bold');
 };
 
-// ── export() — genera JSON completo da incollare ──
-window.export = function() {
+// ── exportDebug() — genera JSON completo da incollare ──
+window.exportDebug = function() {
   var m = window._dbgMetrics;
   var uptime = ((performance.now() - m.sessionStart) / 1000).toFixed(1);
   var ua = navigator.userAgent;
@@ -5805,6 +6044,27 @@ window.export = function() {
       js_errors: m.jsErrors,
       promise_errors: m.promiseErrors
     },
+    matchmaking: {
+      isWaiting: state.isWaitingForMatch,
+      matchFound: state._matchFound,
+      creating: state._creating,
+      queueId: state._myQueueId || null,
+      matchId: state.matchId || null,
+      opponentName: state.opponentName || null,
+      amPlayer1: state.amPlayer1 || null,
+      isMyTurn: state.isMyTurn || null,
+      waitMs: window._dbgMetrics._matchStart ? Math.round(performance.now() - window._dbgMetrics._matchStart) : null,
+      events: (window._dbgEvents||[]).filter(function(e){ return e.type === 'match'; })
+    },
+    private_room: {
+      isHost: state._isRoomHost || false,
+      roomCode: state._roomCode || null,
+      roomId: state._roomId || null,
+      guestListener: state._roomGuestListener || false,
+      channelState: state._roomChannel ? (state._roomChannel.state||'?') : null,
+      waitMs: window._dbgMetrics._roomStart ? Math.round(performance.now() - window._dbgMetrics._roomStart) : null,
+      events: (window._dbgEvents||[]).filter(function(e){ return e.type === 'room'; })
+    },
     dom: {
       canvas_count: document.querySelectorAll('canvas').length,
       canvas_list: Array.from(document.querySelectorAll('canvas')).map(function(c) {
@@ -5812,8 +6072,28 @@ window.export = function() {
       }),
       open_modals: ['modeModal','roomSubModal','joinRoomModal','createRoomCircle','onlineNameModal'].filter(function(id){ return !!document.getElementById(id); })
     },
-    nav_history: window._navHistory || [],
+    auth: {
+      completed: window._authCompleted || false,
+      userType: (function(){ var cu = (typeof window._getCurrentUser === 'function') ? window._getCurrentUser() : null; return cu ? 'logged_in' : 'guest'; })(),
+      email: (function(){ var cu = (typeof window._getCurrentUser === 'function') ? window._getCurrentUser() : null; return cu ? (cu.email||null) : null; })(),
+      username: (window._localProfile||{}).username || null,
+      sessions_played: (window._localProfile||{}).sessions_played || 0,
+      questions_answered: (window._localProfile||{}).questions_answered || 0,
+      supabaseReady: !!window.supabaseClient,
+      events: (window._dbgEvents||[]).filter(function(e){ return e.type === 'auth'; })
+    },
+    game_activity: {
+      questionIndex: state.questionIndex,
+      gameStarted: typeof gameStarted !== 'undefined' ? gameStarted : null,
+      isMyTurn: state.isMyTurn || null,
+      answerSubmitted: state.answerSubmitted || false,
+      advancingNow: state._advancingNow || false,
+      deckSize: typeof shuffledDeck !== 'undefined' ? shuffledDeck.length : null,
+      events: (window._dbgEvents||[]).filter(function(e){ return e.type === 'game'; })
+    },
     event_log: window._dbgEvents || [],
+    watchdog_events: (window._dbgEvents||[]).filter(function(e){ return e.type === 'watchdog'; }),
+    nav_history: window._navHistory || [],
     game_flow: window._gameFlowTimer ? window._gameFlowTimer.events : null
   };
   var json = JSON.stringify(data, null, 2);
@@ -5822,11 +6102,11 @@ window.export = function() {
     navigator.clipboard.writeText(json).then(function() {
       console.log('%c📋 JSON copiato negli appunti! Incollalo direttamente a Claude.', 'color:#00e676;font-weight:bold;font-size:14px');
     }).catch(function() {
-      console.log('%c📋 export() — copia il JSON qui sotto:', 'color:#ffd580;font-weight:bold');
+      console.log('%c📋 exportDebug() — copia il JSON qui sotto:', 'color:#ffd580;font-weight:bold');
       console.log(json);
     });
   } else {
-    console.log('%c📋 export() — copia il JSON qui sotto:', 'color:#ffd580;font-weight:bold');
+    console.log('%c📋 exportDebug() — copia il JSON qui sotto:', 'color:#ffd580;font-weight:bold');
     console.log(json);
   }
   return data;
@@ -7060,6 +7340,8 @@ function shareRoomLink(url) {
 window.shareRoomLink = shareRoomLink;
 
 function cancelRoom(roomId) {
+  _tLog('🚫 ROOM: cancelRoom — ' + (roomId||'?'), '#ffd580');
+  _dbgEvent('room', 'cancel: ' + (roomId||'?'), '#ffd580');
   if (state._roomHostTimeout) { clearTimeout(state._roomHostTimeout); state._roomHostTimeout=null; }
   // FIX: pulisci anche il polling interval aggiunto come backup
   if (state._roomPollInterval) { clearInterval(state._roomPollInterval); state._roomPollInterval=null; }
@@ -7095,7 +7377,10 @@ function listenForRoomGuest(roomId, hostName, deckSeed) {
       // entrambi i path creerebbero un matchId diverso, desincronizzando host e guest.
       if (!state._roomGuestListener) return;
       if (data.status === 'joined' && data.guest_id && data.guest_id !== state.playerId) {
-        if (!state._roomGuestListener) return; // double-check dopo la condizione
+        if (!state._roomGuestListener) return;
+        var waitMs = window._dbgMetrics._roomStart ? (performance.now() - window._dbgMetrics._roomStart).toFixed(0) : '?';
+        _tLog('👥 ROOM: guest rilevato (Realtime)! guest: ' + (data.guest_name||'?') + ' | host wait: ' + waitMs + 'ms', '#00e676');
+        _dbgEvent('room', 'guest joined via realtime: ' + (data.guest_name||'?') + ' wait:' + waitMs + 'ms', '#00e676');
         clearInterval(state._roomPollInterval);
         state._roomPollInterval = null;
         try { sb.removeChannel(channel); } catch(e) {}
@@ -7121,12 +7406,18 @@ function listenForRoomGuest(roomId, hostName, deckSeed) {
           };
           sb.from('matches').insert(matchData).then(async () => {
             await sb.from('matches').update({ match_id: matchId, status: 'active' }).eq('id', roomId);
+            _tLog('✅ ROOM: match creato dall\'host — matchId: ' + matchId.substring(0,20) + '…', '#00e676');
+            _dbgEvent('room', 'host created match: ' + matchId.substring(0,20), '#00e676');
             document.getElementById('roomOverlay')?.remove();
             document.getElementById('waitingRoomOverlay')?.remove(); document.getElementById('waitingRoomSpiralBg')?.remove();
             document.getElementById('createRoomNameModal')?.remove();
             goTo('game');
             startMatch(matchId, data.guest_name, true, data.guest_id);
-          }).catch(err => _ce('Room match create error:', err));
+          }).catch(err => {
+            _ce('Room match create error:', err);
+            _tLog('❌ ROOM: match create FAILED — ' + err.message, '#ff5252');
+            _dbgEvent('room', 'match create fail: ' + err.message, '#ff5252');
+          });
         }
 
         const saved = getLoggedInName('');
@@ -7157,6 +7448,8 @@ function listenForRoomGuest(roomId, hostName, deckSeed) {
       if (!data) return;
       if (data.status === 'joined' && data.guest_id && data.guest_id !== state.playerId) {
         // Trigger manuale - il channel Realtime probabilmente era caduto
+        _tLog('👥 ROOM: guest rilevato (POLL fallback)! guest: ' + (data.guest_name||'?') + ' — Realtime era caduto', '#ffd580');
+        _dbgEvent('room', 'guest via POLL (realtime down): ' + (data.guest_name||'?'), '#ffd580');
         clearInterval(state._roomPollInterval);
         state._roomPollInterval = null;
         state._roomGuestListener = false;
@@ -7206,6 +7499,11 @@ function createPrivateRoom(hostName) {
   const roomUrl  = window.location.origin + window.location.pathname + '?room=' + roomCode;
   const deckSeed = Math.floor(Math.random() * 2147483646) + 1;
 
+  _tLog('🏠 ROOM: createPrivateRoom — code: ' + roomCode + ' | host: ' + (hostName||'pending'), '#ffd580');
+  _t('room:create→ready');
+  _dbgEvent('room', 'create code:' + roomCode + ' host:' + (hostName||'pending'), '#ffd580');
+  window._dbgMetrics._roomStart = performance.now();
+
   state.playerId    = getPlayerId();
   state.playerName  = hostName;
   state.sessionToken= generateId();
@@ -7225,6 +7523,9 @@ function createPrivateRoom(hostName) {
     deck_seed: deckSeed,
     timestamp: Date.now()
   }).then(() => {
+    _tLog('✅ ROOM: stanza creata su DB — code: ' + roomCode + ' | in attesa di guest…', '#00e676');
+    _t('room:create→ready');
+    _dbgEvent('room', 'created on DB, waiting guest', '#00e676');
     document.getElementById('roomLoadingOverlay')?.remove();
     document.getElementById('createRoomCircle')?.remove();
     document.getElementById('createRoomSpiralBg')?.remove();
@@ -7232,6 +7533,8 @@ function createPrivateRoom(hostName) {
     listenForRoomGuest(roomId, '__pending__', deckSeed);
     // Timeout host: se nessun guest arriva in 5 minuti, cancella la stanza
     state._roomHostTimeout = setTimeout(() => {
+      _tLog('⏱ ROOM: timeout — nessun guest dopo 5min, stanza cancellata', '#ff5252');
+      _dbgEvent('room', 'host timeout 5min', '#ff5252');
       cancelRoom(roomId);
       showToast('⏱ Nessun giocatore si è unito - stanza scaduta', 'match-found', 4000);
     }, 5 * 60 * 1000);
@@ -7241,6 +7544,8 @@ function createPrivateRoom(hostName) {
     document.getElementById('createRoomSpiralBg')?.remove();
     _showWelcomeContent();
     _ce('createPrivateRoom error:', err);
+    _tLog('❌ ROOM: createPrivateRoom FAILED — ' + err.message, '#ff5252');
+    _dbgEvent('room', 'create fail: ' + err.message, '#ff5252');
     showToast('⚠️ Errore creazione stanza - riprova', 'match-found', 4000);
   });
 }
@@ -7248,6 +7553,10 @@ window.createPrivateRoom = createPrivateRoom;
 
 function joinPrivateRoom(roomCode, guestName) {
   const roomId = 'room_' + roomCode.toUpperCase();
+  _tLog('🚪 ROOM: joinPrivateRoom — code: ' + roomCode.toUpperCase() + ' | guest: ' + (guestName||'?'), '#48CAE4');
+  _t('room:join→match');
+  _dbgEvent('room', 'join code:' + roomCode.toUpperCase() + ' guest:' + (guestName||'?'), '#48CAE4');
+  window._dbgMetrics._roomStart = performance.now();
 
   function _resetBtn() {
     const btn = document.querySelector('#name-entry .btn-primary');
@@ -7264,11 +7573,19 @@ function joinPrivateRoom(roomCode, guestName) {
   let _attempts = 0;
   function _tryJoin() {
     _attempts++;
+    _tLog('🔍 ROOM: _tryJoin attempt #' + _attempts + ' — roomId: ' + roomId, '#aaa');
+    _dbgEvent('room', 'tryJoin #' + _attempts, '#aaa');
     const sb = _sbClient();
     if (!sb) { _failAndReset('⚠️ Not connected - retry'); return; }
 
     sb.from('matches').select('id,status,player1_id,player1_name,player2_id,player2_name,question_index,question_text,current_turn,deck_seed,answer,timestamp,next_ready_p1,next_ready_p2,guest_id,guest_name').eq('id', roomId).maybeSingle().then(({ data, error }) => {
-      if (error || !data) { _failAndReset('⚠️ Room not found or expired - ask for a new link'); return; }
+      if (error || !data) {
+        _tLog('❌ ROOM: room not found — ' + roomId, '#ff5252');
+        _dbgEvent('room', 'not found: ' + roomId, '#ff5252');
+        _failAndReset('⚠️ Room not found or expired - ask for a new link'); return;
+      }
+      _tLog('📋 ROOM: found — status: ' + data.status + ' | host: ' + (data.host_name||data.player1_name||'?'), data.status==='waiting'?'#00e676':'#ff5252');
+      _dbgEvent('room', 'found status:' + data.status, data.status==='waiting'?'#00e676':'#ffd580');
       if (data.status === 'joined' || data.status === 'active') { _failAndReset('⚠️ Room is full - game already started'); return; }
       if (data.status !== 'waiting') { _failAndReset('⚠️ Room not available'); return; }
 
@@ -7281,10 +7598,13 @@ function joinPrivateRoom(roomCode, guestName) {
       sb.from('matches').update({ guest_id: state.playerId, guest_name: guestName, status: 'joined' }).eq('id', roomId)
         .then(({ error: updErr }) => {
           if (updErr) throw updErr;
+          _tLog('✅ ROOM: guest joined DB — aspetto avvio host…', '#00e676');
+          _dbgEvent('room', 'guest joined, waiting host', '#00e676');
 
-          // FIX: timeout esteso a 60s con feedback progressivo (era 30s, troppo poco
-          // per host su connessione lenta o che deve inserire il nome)
+          // FIX: timeout esteso a 60s
           let _guestTimeout = setTimeout(() => {
+            _tLog('⏱ ROOM: guest timeout 60s — host non ha risposto', '#ff5252');
+            _dbgEvent('room', 'guest timeout 60s', '#ff5252');
             if (state._roomChannel) { try { sb.removeChannel(state._roomChannel); } catch(e) {} state._roomChannel = null; }
             _failAndReset('⚠️ Host did not respond - try again');
           }, 60000);
@@ -7304,6 +7624,8 @@ function joinPrivateRoom(roomCode, guestName) {
           const roomCh = sb.channel('guest_room_' + roomId)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches', filter: 'id=eq.' + roomId }, ({ new: d }) => {
               if (!d) {
+                _tLog('🚪 ROOM: host cancelled the room', '#ff5252');
+                _dbgEvent('room', 'host cancelled', '#ff5252');
                 clearTimeout(_guestTimeout); clearTimeout(_halfwayToast);
                 clearTimeout(_toast20); clearTimeout(_toast40);
                 try { sb.removeChannel(roomCh); } catch(e) {}
@@ -7312,6 +7634,10 @@ function joinPrivateRoom(roomCode, guestName) {
                 goTo('name-entry'); _resetBtn(); return;
               }
               if (d.match_id && d.status === 'active') {
+                var waitMs = window._dbgMetrics._roomStart ? (performance.now() - window._dbgMetrics._roomStart).toFixed(0) : '?';
+                _tLog('🎮 ROOM: match attivato! matchId: ' + d.match_id.substring(0,20) + '… | wait: ' + waitMs + 'ms', '#00e676');
+                _t('room:join→match');
+                _dbgEvent('room', 'match active! wait:' + waitMs + 'ms', '#00e676');
                 clearTimeout(_guestTimeout); clearTimeout(_halfwayToast);
                 clearTimeout(_toast20); clearTimeout(_toast40);
                 try { sb.removeChannel(roomCh); } catch(e) {}
@@ -7393,6 +7719,12 @@ function joinMatchQueue() {
   state._myQueueId        = null;
   state._creating         = false;
 
+  // ── DBG: avvio matchmaking ──
+  _tLog('🔍 MATCHMAKING: joinQueue — playerId: ' + state.playerId.substring(0,12) + '…', '#48CAE4');
+  _t('matchmaking:queue→match');
+  _dbgEvent('match', 'joinQueue start', '#48CAE4');
+  window._dbgMetrics._matchStart = performance.now();
+
   // Spirale già avviata prima — mostra solo il badge con piccolo delay
   _startWaitingCounter();
   // Se la spirale non è ancora avviata (percorso alternativo), avviala ora
@@ -7442,9 +7774,13 @@ async function _joinQueueAsync() {
 
   if (error) {
     _ce('[Match] Failed to insert into match_queue:', error);
+    _tLog('❌ MATCHMAKING: insert in queue FAILED — ' + (error.message||JSON.stringify(error)), '#ff5252');
+    _dbgEvent('match', 'queue insert fail: ' + (error.message||''), '#ff5252');
     throw error;
   }
   state._myQueueId = row.id;
+  _tLog('✅ MATCHMAKING: in queue — rowId: ' + row.id + ' | waiting for opponent…', '#00e676');
+  _dbgEvent('match', 'in queue id:' + row.id, '#00e676');
 
   // Subscrive ai cambiamenti della queue via Realtime
   const channel = sb.channel('match_queue_' + state.playerId)
@@ -7458,6 +7794,8 @@ async function _joinQueueAsync() {
       _matchLoop();
     })
     .subscribe(status => {
+      _tLog('📡 MATCHMAKING: realtime channel → ' + status, status === 'SUBSCRIBED' ? '#00e676' : status === 'CLOSED' ? '#ff5252' : '#ffd580');
+      _dbgEvent('match', 'channel:' + status, status === 'SUBSCRIBED' ? '#00e676' : '#ffd580');
       // Start first loop only once channel is confirmed ready
       if (status === 'SUBSCRIBED') _matchLoop();
     });
@@ -7558,6 +7896,9 @@ async function _matchLoop() {
       if (me && Date.now() - me.timestamp > 10000) {
         try { await sb.from('match_queue').update({ timestamp: Date.now() }).eq('id', me.id); } catch(e) {}
       }
+      var waitSec = window._dbgMetrics._matchStart ? ((performance.now() - window._dbgMetrics._matchStart)/1000).toFixed(1) : '?';
+      _tLog('⏳ MATCHMAKING: queue empty — waiting ' + waitSec + 's | players in queue: 1 (solo me)', '#aaa');
+      _dbgEvent('match', 'no opponent, wait ' + waitSec + 's', '#aaa');
       state._matchPollTimer = setTimeout(_matchLoop, 2000);
       return;
     }
@@ -7568,10 +7909,14 @@ async function _matchLoop() {
     }
 
     const opp = others[0]; // più vecchio in coda
+    _tLog('👥 MATCHMAKING: opponent found! ' + (opp.player_name||'Guest') + ' | queue size: ' + (others.length+1), '#ffd580');
+    _dbgEvent('match', 'opponent: ' + (opp.player_name||'?'), '#ffd580');
 
     // Chi è arrivato DOPO crea il match (timestamp più alto)
     const myTs  = me.timestamp;
     const iCreate = myTs > opp.timestamp || (myTs === opp.timestamp && myId > opp.player_id);
+    _tLog('⚙️ MATCHMAKING: ' + (iCreate ? 'IO creo il match' : 'ASPETTO che crei lui'), iCreate ? '#48CAE4' : '#aaa');
+    _dbgEvent('match', iCreate ? 'I create' : 'waiting for opp to create', '#48CAE4');
 
     if (iCreate && !state._creating) {
       state._creating = true;
@@ -7595,6 +7940,8 @@ async function _matchLoop() {
 
 async function _doCreateMatch(me, opp) {
   const sb = _sbClient(); if (!sb) { state._creating = false; return; }
+  _tLog('🔒 MATCHMAKING: _doCreateMatch — acquiring lock…', '#ffd580');
+  _t('match:create');
 
   // FIX: timeout globale di sicurezza - se l'intera operazione si blocca
   // (es. Supabase lento o network flap), state._creating viene rilasciato
@@ -7618,10 +7965,13 @@ async function _doCreateMatch(me, opp) {
   if (lockErr) {
     clearTimeout(_createTimeout);
     // Lock già preso dall'altro - aspetta che crei lui
+    _tLog('🔒 MATCHMAKING: lock preso dall\'altro — aspetto', '#aaa');
+    _dbgEvent('match', 'lock taken by opp', '#aaa');
     state._creating = false;
     state._matchPollTimer = setTimeout(_matchLoop, 600);
     return;
   }
+  _tLog('🔓 MATCHMAKING: lock acquisito — creo match…', '#48CAE4');
 
   try {
     const matchId  = 'match_' + generateId();
@@ -7651,6 +8001,8 @@ async function _doCreateMatch(me, opp) {
 
     // Scrivi la partita su Supabase
     await sb.from('matches').insert({ id: matchId, ...matchData });
+    _tLog('✅ MATCHMAKING: match scritto su DB — id: ' + matchId.substring(0,20) + '…', '#00e676');
+    _dbgEvent('match', 'match created: ' + matchId.substring(0,20), '#00e676');
 
     // Rimuovi entrambi dalla queue e rilascia lock atomicamente
     await Promise.all([
@@ -7660,10 +8012,13 @@ async function _doCreateMatch(me, opp) {
 
     clearTimeout(_createTimeout);
     state._creating = false;
+    _t('match:create');
     // Il Supabase Realtime listener lo rileverà e chiamerà _onMatchFound
   } catch(err) {
     clearTimeout(_createTimeout);
     _ce('[Match] Create failed:', err);
+    _tLog('❌ MATCHMAKING: _doCreateMatch FAILED — ' + err.message, '#ff5252');
+    _dbgEvent('match', 'create fail: ' + err.message, '#ff5252');
     await sb.from('match_locks').delete().eq('lock_key', lockKey).then(()=>{}, ()=>{});
     state._creating = false;
     state._matchPollTimer = setTimeout(_matchLoop, 1500);
@@ -7739,6 +8094,10 @@ function _cleanupQueueListeners() {
 
 // Cancella la ricerca e torna alla selezione modalità
 function cancelWorldPlaySearch() {
+  var waited = window._dbgMetrics._matchStart ? ((performance.now() - window._dbgMetrics._matchStart)/1000).toFixed(1) + 's' : '?';
+  _tLog('🚫 MATCHMAKING: cancelled by user after ' + waited, '#ffd580');
+  _dbgEvent('match', 'cancelled after ' + waited, '#ffd580');
+  window._dbgMetrics._matchStart = null;
   removeFromQueue(state._myQueueId);
   goTo('welcome');
   setTimeout(function() { showModeSelection(); }, 80);
@@ -7794,6 +8153,15 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
   state._pendingMatchUpdate = null;
   state.opponentName = opponentName;
   state.opponentId = opponentId;
+
+  // ── DBG: match started ──
+  var _matchTotalMs = window._dbgMetrics._matchStart ? (performance.now() - window._dbgMetrics._matchStart).toFixed(0) : '?';
+  _tLog('🎮 MATCHMAKING: startMatch — opponent: ' + (opponentName||'?') + ' | am P1: ' + amPlayer1 + ' | total wait: ' + _matchTotalMs + 'ms', '#00e676');
+  _dbgEvent('match', 'startMatch: ' + (opponentName||'?') + ' P1:' + amPlayer1 + ' wait:' + _matchTotalMs + 'ms', '#00e676');
+  if (window._dbgMetrics._matchStart) {
+    _t('matchmaking:queue→match'); // chiude il timer aperto in joinMatchQueue
+    window._dbgMetrics._matchStart = null;
+  }
   state._friendRequestSent = false;
   // Guest IDs have format xxxxxxx_timestamp; Supabase UUIDs have dashes
   state.opponentIsGuest = !opponentId || !opponentId.includes('-');
@@ -7831,6 +8199,9 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
         if (!state.matchId) return;
         const presState = presenceChannel.presenceState();
         const oppOnline = !!presState[opponentId];
+        const onlineCount = Object.keys(presState).length;
+        _tLog('👥 PRESENCE sync — opponent: ' + (oppOnline ? '🟢 online' : '🔴 offline') + ' | players online: ' + onlineCount, oppOnline ? '#00e676' : '#ff5252');
+        _dbgEvent('match', 'presence sync opp:' + (oppOnline?'online':'offline') + ' count:' + onlineCount, oppOnline?'#00e676':'#ff5252');
         if (!oppOnline) {
           if (state._presenceTimer) return;
           state._presenceTimer = setTimeout(() => {
@@ -7838,6 +8209,8 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
             const ps2 = presenceChannel.presenceState();
             if (!ps2[opponentId]) {
               _reconnectCount++;
+              _tLog('⚠️ PRESENCE: opponent still offline — reconnect attempt #' + _reconnectCount, '#ffd580');
+              _dbgEvent('match', 'opp offline reconnect #' + _reconnectCount, '#ffd580');
               if (_reconnectCount < 2) {
                 state._presenceTimer = null;
                 showToast('⚠️ Partner connection lost - waiting…', 'match-found', 3000);
@@ -7850,7 +8223,10 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
               } else { handleOpponentLeft(matchId, null); }
             } else {
               state._presenceTimer = null;
-              if (_reconnectCount > 0) // partner reconnect toast removed
+              if (_reconnectCount > 0) {
+                _tLog('✅ PRESENCE: opponent reconnected after ' + _reconnectCount + ' attempt(s)', '#00e676');
+                _dbgEvent('match', 'opp reconnected', '#00e676');
+              }
               _reconnectCount = 0;
             }
           }, 5000);
@@ -7860,6 +8236,8 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
         }
       })
       .subscribe(async (status) => {
+        _tLog('📡 PRESENCE channel → ' + status, status === 'SUBSCRIBED' ? '#00e676' : status === 'CLOSED' || status === 'CHANNEL_ERROR' ? '#ff5252' : '#ffd580');
+        _dbgEvent('match', 'presence:' + status, status === 'SUBSCRIBED' ? '#00e676' : '#ffd580');
         if (status === 'SUBSCRIBED') await presenceChannel.track({ online_at: Date.now() });
       });
   }
@@ -7885,6 +8263,8 @@ function startMatch(matchId, opponentName, amPlayer1, opponentId) {
 
 function handleOpponentLeft(matchId, _unused) {
   if (!state.matchId) return;
+  _tLog('🚪 MATCH: opponent left / abandoned — matchId: ' + (matchId||'?').substring(0,20), '#ff5252');
+  _dbgEvent('match', 'opponent left', '#ff5252');
 
   if (state._presenceChannel) { try { _sbClient()?.removeChannel(state._presenceChannel); } catch(e) {} state._presenceChannel = null; }
   if (state._presenceTimer) { clearTimeout(state._presenceTimer); state._presenceTimer = null; }
@@ -7958,6 +8338,8 @@ function handleOpponentLeft(matchId, _unused) {
 }
 
 function leaveMatch() {
+  _tLog('🚶 MATCH: leaveMatch — matchId: ' + (state.matchId||'none').substring(0,20), '#ffd580');
+  _dbgEvent('match', 'leaveMatch', '#ffd580');
   state._userLeftMatch = true;
   _cleanupQueueListeners();
   // Rimuovi tutti i toast di connessione attivi
@@ -8081,6 +8463,8 @@ window.addEventListener('beforeunload', () => {
 function _tryRejoinMatch() {
   const matchId = state.matchId;
   if (!matchId || !state.playerId) return;
+  _tLog('🔄 MATCH: _tryRejoinMatch — channel state: ' + (state._matchChannel?.state || 'null'), '#ffd580');
+  _dbgEvent('match', 'rejoin ch:' + (state._matchChannel?.state||'null'), '#ffd580');
 
   // Aggiorna presence track (segnala che siamo tornati online)
   if (state._presenceChannel) {
@@ -8183,18 +8567,16 @@ function listenToMatch(matchId) {
       if (payload.new) _handleMatchUpdate(matchId, _sbMatchToState(payload.new));
     })
     .subscribe((status) => {
-      // FIX: gestire CHANNEL_ERROR e TIMED_OUT - il canale può cadere su mobile
-      // o dopo una disconnessione temporanea. Senza questo, lo stato di gioco
-      // smette di aggiornarsi silenziosamente e la partita si blocca.
+      _tLog('📡 MATCH channel → ' + status, status === 'SUBSCRIBED' ? '#00e676' : status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? '#ff5252' : '#ffd580');
+      _dbgEvent('match', 'matchCh:' + status, status === 'SUBSCRIBED' ? '#00e676' : '#ffd580');
+      // FIX: gestire CHANNEL_ERROR e TIMED_OUT
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        _cw('[Match] Channel ' + status + ' - resubscribing in 2s');
-        if (_resubscribeTimer) return; // già programmato
+        _tLog('⚠️ MATCH channel ' + status + ' — resubscribe in 2s', '#ff5252');
+        if (_resubscribeTimer) return;
         _resubscribeTimer = setTimeout(() => {
           _resubscribeTimer = null;
-          // Solo se la partita è ancora attiva e questo è ancora il canale corrente
           if (state.matchId === matchId && state._matchChannel === ch) {
-            listenToMatch(matchId); // ricrea il canale
-            // Fetch immediato per recuperare aggiornamenti persi durante il gap
+            listenToMatch(matchId);
             sb.from('matches').select('id,status,player1_id,player1_name,player2_id,player2_name,question_index,question_text,current_turn,deck_seed,answer,timestamp,next_ready_p1,next_ready_p2,guest_id,guest_name').eq('id', matchId).maybeSingle().then(({ data }) => {
               if (data && state.matchId === matchId) _handleMatchUpdate(matchId, _sbMatchToState(data));
             }).catch(() => {});
@@ -8214,6 +8596,8 @@ function _handleMatchUpdate(matchId, data) {
   if (!data) return;
   if (matchId !== state.matchId) return;
   state._lastMatchData = data;
+  _tLog('📥 MATCH update — turn: ' + (data.currentTurn === state.playerId ? '🟢 MINE' : '⏳ opponent') + ' | q#' + data.questionIndex + ' | status: ' + data.status, data.currentTurn === state.playerId ? '#00e676' : '#aaa');
+  _dbgEvent('match', 'update q:' + data.questionIndex + ' turn:' + (data.currentTurn===state.playerId?'mine':'opp') + ' status:' + data.status, '#48CAE4');
 
   if (data.status === 'abandoned') { handleOpponentLeft(matchId, null); return; }
 
@@ -8310,14 +8694,16 @@ function _handleMatchUpdate(matchId, data) {
   // ── 4. BOTH READY: one player advances ─────────────────────
   if (p1Ready && p2Ready && !state._advancingNow) {
     state._advancingNow = true;
+    _tLog('⏩ ADVANCE: entrambi pronti — q#' + qi + ' → q#' + (qi+1) + ' | advancing…', '#48CAE4');
+    _t('next:ready→advance');
+    _dbgEvent('game', 'both ready, advancing q:' + qi + '→' + (qi+1), '#48CAE4');
     _updateNextReadyBadge(true, true);
     const _fromQI = qi;
     const _fromMatchId = matchId;
-    // FIX: timeout di sicurezza su tutta l'operazione di avanzamento -
-    // se sb.update() non risponde (network freeze), _advancingNow resterebbe
-    // true per sempre e il gioco si bloccherebbe alla domanda corrente.
     const _advanceGuard = setTimeout(() => {
       if (state._advancingNow && state.matchId === _fromMatchId) {
+        _tLog('⚠️ ADVANCE: timeout 8s — releasing _advancingNow', '#ff5252');
+        _dbgEvent('game', 'advance timeout 8s', '#ff5252');
         _cw('[Advance] timed out - releasing _advancingNow');
         state._advancingNow = false;
       }
@@ -8339,7 +8725,19 @@ function _handleMatchUpdate(matchId, data) {
                   answer: null, next_ready_p1: false, next_ready_p2: false })
         .eq('id', _fromMatchId)
         .eq('question_index', _fromQI)
-        .then(({ error }) => { clearTimeout(_advanceGuard); state._advancingNow = false; if (error) _ce('[Advance] failed:', error); })
+        .then(({ error }) => {
+          clearTimeout(_advanceGuard);
+          state._advancingNow = false;
+          if (error) {
+            _tLog('❌ ADVANCE: DB write failed — ' + error.message, '#ff5252');
+            _dbgEvent('game', 'advance fail: ' + error.message, '#ff5252');
+            _ce('[Advance] failed:', error);
+          } else {
+            _tLog('✅ ADVANCE: DB aggiornato — ora q#' + nextQI, '#00e676');
+            _t('next:ready→advance');
+            _dbgEvent('game', 'advanced to q:' + nextQI, '#00e676');
+          }
+        })
         .catch(() => { clearTimeout(_advanceGuard); state._advancingNow = false; });
     }, 600);
   }
@@ -12202,9 +12600,6 @@ function submitAnswer() {
     setTimeout(() => input.classList.remove('shake'), 500);
     return;
   }
-  // FIX: validazione lunghezza lato JS - l'attributo maxlength HTML può essere
-  // bypassato da un utente che chiama l'API direttamente o modifica il DOM.
-  // Questo check garantisce che nessuna risposta anomala raggiunga Supabase.
   if (answer.length > 500) {
     showToast('⚠️ Answer too long (max 500 characters)', 'match-found', 3000);
     return;
@@ -12214,29 +12609,31 @@ function submitAnswer() {
     input.value = '';
     state.currentAnswer = answer;
     gameStarted = true;
+    _tLog('✍️ ANSWER: solo mode q#' + state.questionIndex + ' — "' + answer.substring(0,30) + (answer.length>30?'…':'') + '"', '#aaa');
+    _dbgEvent('game', 'solo answer q:' + state.questionIndex, '#aaa');
     setTimeout(() => {
       state.questionIndex++;
       deckIndex++;
-      if (deckIndex >= shuffledDeck.length) buildShuffledDeck(); // solo mode, no seed needed
+      if (deckIndex >= shuffledDeck.length) buildShuffledDeck();
       loadQuestion();
       updateTurnUI();
     }, 350);
     return;
   }
 
-
-
   if (!state.isMyTurn || !state.matchId) return;
   if (state.answerSubmitted) return;
   state.answerSubmitted = true;
 
+  _tLog('✍️ ANSWER: submit q#' + state.questionIndex + ' — "' + answer.substring(0,30) + (answer.length>30?'…':'') + '"', '#48CAE4');
+  _t('answer:submit→db');
+  _dbgEvent('game', 'answer q:' + state.questionIndex + ' len:' + answer.length, '#48CAE4');
+
   input.value = '';
   input.disabled = true;
-  // Nascondi subito il campo - non aspettare Firebase
   const ac = document.getElementById('answerContainer');
   if (ac) ac.style.display = 'none';
 
-  // Scrivi risposta su Supabase - il listener Realtime aggiornerà entrambi
   function writeAnswer(attempt) {
     const sb = _sbClient(); if (!sb) return;
     const answerObj = { playerId: state.playerId, playerName: state.playerName, text: answer,
@@ -12248,14 +12645,20 @@ function submitAnswer() {
       if (error) throw error;
       state.currentAnswer = answer;
       state.isMyTurn = false;
-      // Nessun broadcast - il Postgres Realtime su 'matches' notifica entrambi tramite _handleMatchUpdate
       state._answerOnDB = true;
+      _tLog('✅ ANSWER: scritto su DB (attempt #' + attempt + ')', '#00e676');
+      _t('answer:submit→db');
+      _dbgEvent('game', 'answer on DB attempt:' + attempt, '#00e676');
       updateTurnUI();
     }).catch(err => {
       if (attempt < 3 && state.matchId) {
+        _tLog('⚠️ ANSWER: write failed, retry #' + (attempt+1) + ' — ' + err.message, '#ffd580');
+        _dbgEvent('game', 'answer retry #' + (attempt+1) + ': ' + err.message, '#ffd580');
         _cw('Answer write failed, retry', attempt, err);
         setTimeout(() => writeAnswer(attempt + 1), 1500 * attempt);
       } else {
+        _tLog('❌ ANSWER: write FAILED after 3 attempts — ' + err.message, '#ff5252');
+        _dbgEvent('game', 'answer fail: ' + err.message, '#ff5252');
         state.answerSubmitted = false;
         const inp = document.getElementById('answerInput');
         if (inp) { inp.value = answer; inp.disabled = false; }
@@ -12893,6 +13296,8 @@ function _resetRoundUI() {
 function nextQuestion() {
   // ── OFFLINE ──────────────────────────────────────────────────
   if (state.isOffline) {
+    _tLog('➡️ NEXT Q: offline — q#' + (state.questionIndex+1), '#aaa');
+    _dbgEvent('game', 'next offline q:' + (state.questionIndex+1), '#aaa');
     _resetRoundUI();
     state.questionIndex++; deckIndex++;
     if (deckIndex >= shuffledDeck.length) buildShuffledDeck();
@@ -12904,6 +13309,8 @@ function nextQuestion() {
 
   // ── SOLO ─────────────────────────────────────────────────────
   if (state.isSolo) {
+    _tLog('➡️ NEXT Q: solo — q#' + (state.questionIndex+1), '#aaa');
+    _dbgEvent('game', 'next solo q:' + (state.questionIndex+1), '#aaa');
     _resetRoundUI();
     state.questionIndex++; deckIndex++;
     if (deckIndex >= shuffledDeck.length) buildShuffledDeck();
@@ -12911,10 +13318,13 @@ function nextQuestion() {
     return;
   }
 
-  // ── ONLINE: entrambi devono premere Next ─────────────────────
+  // ── ONLINE ───────────────────────────────────────────────────
   if (!state.matchId) return;
   if (state._nextPressed) { return; }
   state._nextPressed = true;
+  _tLog('➡️ NEXT Q: online — q#' + state.questionIndex + ' | marking ready…', '#48CAE4');
+  _t('next:ready→advance');
+  _dbgEvent('game', 'next online q:' + state.questionIndex, '#48CAE4');
 
   const btnNext = document.getElementById('btnNextQ');
   if (btnNext) btnNext.classList.add('pressed');
@@ -12929,11 +13339,15 @@ function nextQuestion() {
     .eq('id', _matchIdAtPress)
     .then(({ error }) => {
       if (error) {
+        _tLog('❌ NEXT Q: DB write failed — ' + error.message, '#ff5252');
+        _dbgEvent('game', 'next fail: ' + error.message, '#ff5252');
         state._nextPressed = false;
         if (btnNext) btnNext.classList.remove('pressed');
         showToast('⚠️ Network error - tap Next again', 'match-found', 3000);
         return;
       }
+      _tLog('✅ NEXT Q: ready flag scritto — aspetto opponent…', '#00e676');
+      _dbgEvent('game', 'next ready on DB', '#00e676');
     });
   // Il listener Realtime in listenToMatch gestirà l'avanzamento quando entrambi sono pronti
 }
@@ -13049,6 +13463,8 @@ function updateOfflineTurnUI() {
 //  LANGUAGE
 // ══════════════════════════════════════════
 function initLanguagePage() {
+  _tLog('🌐 LANGUAGE: init — current: ' + (state.selectedLang ? state.selectedLang.code : 'en'), '#aaa');
+  _dbgEvent('ui', 'language page open', '#aaa');
   const grid = document.getElementById('langGrid');
   if (!grid) return;
   grid.innerHTML = '';
@@ -15466,6 +15882,8 @@ window.toggleDebug = toggleDebug;
   function showSessionSummary() {
     if (_ssShown) return;
     _ssShown = true;
+    _tLog('🏆 SESSION SUMMARY: aperta — q totali: ' + state.questionIndex + ' | opponent: ' + (state.opponentName||'solo'), '#c084fc');
+    _dbgEvent('game', 'session summary q:' + state.questionIndex + ' opp:' + (state.opponentName||'solo'), '#c084fc');
 
     const names = _getParticipantNames();
     const container = document.getElementById('ssParticipants');
@@ -15718,11 +16136,17 @@ window.toggleDebug = toggleDebug;
   async function _saveSessionStats() {
     if (_statsSaved) return;
     _statsSaved = true;
+    _tLog('💾 STATS: saveSessionStats — q: ' + (typeof state !== 'undefined' ? state.questionIndex : '?'), '#aaa');
+    _dbgEvent('game', 'saveStats q:' + (typeof state !== 'undefined' ? state.questionIndex : '?'), '#aaa');
     try {
       const sb = (typeof _sbClient === 'function') ? _sbClient() : null;
       const cu = (typeof window._getCurrentUser === 'function') ? window._getCurrentUser()
                : (typeof currentUser !== 'undefined' ? currentUser : null);
-      if (!sb || !cu) return;
+      if (!sb || !cu) {
+        _tLog('⏭️ STATS: skip — ' + (!sb?'no Supabase':'not logged in'), '#aaa');
+        _dbgEvent('game', 'stats skip: ' + (!sb?'no sb':'not logged'), '#aaa');
+        return;
+      }
       // Numero di domande risposte in questa sessione (almeno 1)
       const questionsThisSession = Math.max(1, (typeof state !== 'undefined' ? state.questionIndex : 0));
       // Incrementa atomicamente su Supabase con rpc o update+select
@@ -15735,13 +16159,16 @@ window.toggleDebug = toggleDebug;
           questions_answered: (prof.questions_answered || 0) + questionsThisSession,
           updated_at: new Date().toISOString()
         }).eq('id', cu.id);
-        // Aggiorna il profilo locale
+        _tLog('✅ STATS: salvate — sessions: ' + ((prof.sessions_played||0)+1) + ' | q totali: ' + ((prof.questions_answered||0)+questionsThisSession), '#00e676');
+        _dbgEvent('game', 'stats saved sessions:' + ((prof.sessions_played||0)+1), '#00e676');
         if (typeof _localProfile !== 'undefined') {
           _localProfile.sessions_played    = (prof.sessions_played    || 0) + 1;
           _localProfile.questions_answered = (prof.questions_answered || 0) + questionsThisSession;
         }
       }
     } catch(e) {
+      _tLog('❌ STATS: save failed — ' + e.message, '#ff5252');
+      _dbgEvent('game', 'stats fail: ' + e.message, '#ff5252');
       _cw('_saveSessionStats:', e);
     }
   }
@@ -16148,9 +16575,14 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
       if (existingUser) {
         currentUser = existingUser;
         window._authCompleted = true;
+        _tLog('✅ AUTH: sessione esistente — user: ' + (existingUser.email||existingUser.id?.substring(0,12)||'?'), '#00e676');
+        _dbgEvent('auth', 'existing session: ' + (existingUser.email||existingUser.id?.substring(0,12)||'?'), '#00e676');
         await loadProfile();
         const name = _localProfile?.username || existingUser.user_metadata?.display_name || existingUser.email?.split('@')[0];
         updateUserPill(existingUser, name);
+      } else {
+        _tLog('👤 AUTH: nessuna sessione — guest mode', '#aaa');
+        _dbgEvent('auth', 'no session, guest', '#aaa');
       }
     } catch(e) {}
   })();
@@ -16167,25 +16599,26 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
   let _supabaseInitPromise = null;
 
   async function _initSupabase() {
-    if (supabaseClient) return; // already initialized
+    if (supabaseClient) return;
     if (_supabaseInitPromise) return _supabaseInitPromise;
+    _tLog('🔌 AUTH: initSupabase…', '#aaa');
+    _t('supabase:init');
     _supabaseInitPromise = (async () => {
       try {
         await _loadSupabaseSDK();
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true
-          },
-          realtime: {
-            params: { eventsPerSecond: 10 }
-          }
+          auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+          realtime: { params: { eventsPerSecond: 10 } }
         });
         window.supabaseClient  = supabaseClient;
         window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
         window.SUPABASE_URL      = SUPABASE_URL;
+        _tLog('✅ AUTH: Supabase client ready', '#00e676');
+        _t('supabase:init');
+        _dbgEvent('auth', 'supabase init ok', '#00e676');
       } catch(e) {
+        _tLog('❌ AUTH: Supabase init FAILED — ' + e.message, '#ff5252');
+        _dbgEvent('auth', 'supabase init fail: ' + e.message, '#ff5252');
         _cw('Supabase not configured yet - auth disabled');
       }
     })();
@@ -16333,6 +16766,8 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
     currentUser = null; updateUserPill(null);
     window._authCompleted = true;
     state._authReturnTo = null;
+    _tLog('👤 AUTH: continueAsGuest — name: ' + (state.playerName||'(da chiedere)'), '#aaa');
+    _dbgEvent('auth', 'guest: ' + (state.playerName||'pending'), '#aaa');
 
     const savedName = (() => { try { return localStorage.getItem('playerName') || ''; } catch(e) { return ''; } })();
 
@@ -16394,9 +16829,15 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
   async function onAuthSuccess(user, name) {
     currentUser = user;
     window._authCompleted = true;
+    _tLog('🔐 AUTH: onAuthSuccess — ' + (user.email||user.id?.substring(0,12)||'?'), '#00e676');
+    _t('auth:login→profile');
+    _dbgEvent('auth', 'login: ' + (user.email||'?'), '#00e676');
     await loadProfile();
     // Start listening for friend invites
     if (typeof setupInviteListener === 'function') setupInviteListener(user.id);
+    _tLog('✅ AUTH: onAuthSuccess completato', '#00e676');
+    _t('auth:login→profile');
+    _dbgEvent('auth', 'auth flow complete', '#00e676');
     const returnTo = state._authReturnTo;
     state._authReturnTo = null;
     if (!_localProfile.username) {
@@ -17216,7 +17657,13 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
   }
 
   // ── Open Social (init tab) ──
-  function openSocial() { _socialTab = 'friends'; switchSocialTab('friends'); }
+  function openSocial() { 
+    _tLog('👥 SOCIAL: open — tab: friends', '#aaa');
+    _dbgEvent('ui', 'social open', '#aaa');
+    _t('social:open→render');
+    _socialTab = 'friends'; switchSocialTab('friends');
+    _t('social:open→render');
+  }
   window.openSocial = openSocial;
 
   // ── Chat ──
@@ -17448,6 +17895,9 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
   // ── Open Profile - populate fields ──
   async function openProfile() {
     const profile = _localProfile || {};
+    _tLog('👤 PROFILE: open — user: ' + (profile.username||currentUser?.email||'guest') + ' | sessions: ' + (profile.sessions_played||0) + ' | q: ' + (profile.questions_answered||0), '#48CAE4');
+    _t('profile:open→render');
+    _dbgEvent('ui', 'profile open: ' + (profile.username||'guest'), '#48CAE4');
     const name = (currentUser && (currentUser.user_metadata?.full_name || currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0])) || '';
     // Stats — sessions & questions from local cache (already up to date)
     const statSessions  = document.getElementById('stat-sessions');
@@ -17485,6 +17935,7 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
     const wrap = document.getElementById('profile-spiral-wrap');
     if (wrap) wrap.classList.toggle('offline', !isOnline);
     _userStatus = status;
+    _t('profile:open→render');
   }
   window.openProfile = openProfile;
 
@@ -17533,34 +17984,36 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
   window._localProfile = _localProfile;
   async function loadProfile() {
     if (!supabaseClient || !currentUser) return;
+    _t('profile:load');
+    _tLog('📋 PROFILE: loadProfile — userId: ' + currentUser.id?.substring(0,12) + '…', '#aaa');
     try {
       const { data } = await supabaseClient.from('profiles').select('id,username,avatar_url,email,created_at,updated_at').eq('id', currentUser.id).single();
       if (data) {
         _localProfile = data; window._localProfile = _localProfile;
-        // Aggiorna playerName con username reale
+        _tLog('✅ PROFILE: caricato — username: ' + (data.username||'(none)') + ' | sessions: ' + (data.sessions_played||0) + ' | q: ' + (data.questions_answered||0), '#00e676');
+        _t('profile:load');
+        _dbgEvent('auth', 'profile loaded: ' + (data.username||'no username'), '#00e676');
         if (data.username) {
           state.playerName = data.username;
           try { localStorage.setItem('playerName', data.username); } catch(e) {}
         }
-        // Restore profile photo if saved
-        if (data.avatar_url) {
-          setTimeout(() => _applyProfilePhoto(data.avatar_url), 100);
-        }
-        // Carica i progressi della raccolta da Supabase (merge con localStorage)
+        if (data.avatar_url) setTimeout(() => _applyProfilePhoto(data.avatar_url), 100);
         if (typeof gardenLoadFromSupabase === 'function') gardenLoadFromSupabase();
       } else {
-        // Profilo non esiste ancora (es. nuovo utente Google) - crealo
+        _tLog('🆕 PROFILE: nuovo utente — creo profilo', '#ffd580');
+        _dbgEvent('auth', 'new user, creating profile', '#ffd580');
         const email = currentUser.email || '';
         await supabaseClient.from('profiles').upsert({
-          id: currentUser.id,
-          email,
+          id: currentUser.id, email,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
         _localProfile = { id: currentUser.id, email }; window._localProfile = _localProfile;
+        _t('profile:load');
       }
     } catch(e) {
-      // Prova comunque a creare il profilo
+      _tLog('❌ PROFILE: loadProfile FAILED — ' + e.message, '#ff5252');
+      _dbgEvent('auth', 'profile load fail: ' + e.message, '#ff5252');
       try {
         await supabaseClient.from('profiles').upsert({
           id: currentUser.id,
@@ -17569,7 +18022,9 @@ self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r
           updated_at: new Date().toISOString()
         });
         _localProfile = { id: currentUser.id, email: currentUser.email || '' };
-      } catch(e2) {}
+      } catch(e2) {
+        _tLog('❌ PROFILE: upsert fallback FAILED — ' + e2.message, '#ff5252');
+      }
     }
   }
 
