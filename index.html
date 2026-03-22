@@ -128,7 +128,8 @@
   font-size: 1.05rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.04em !important;
-  color: rgba(80,50,10,0.92) !important;
+  color: rgba(255,238,185,0.95) !important;
+  text-shadow: 0 0 10px rgba(255,210,100,0.4), 0 0 20px rgba(180,140,40,0.25) !important;
   text-transform: none !important;
 }
 /* Hide the play SVG icon on letsplay, use a ? mark instead */
@@ -139,9 +140,9 @@
   font-family: 'Cormorant Garamond', serif;
   font-size: 2.2rem;
   font-weight: 400;
-  color: rgba(160,110,20,0.88);
+  color: rgba(160,230,180,0.92);
   line-height: 1;
-  text-shadow: 0 0 12px rgba(255,180,0,0.4);
+  text-shadow: 0 0 14px rgba(0,200,80,0.5);
   position: relative;
   z-index: 1;
 }
@@ -5302,11 +5303,7 @@ try {
                   </div>
                 </div>
                 <!-- Tap hint overlay centered on card back -->
-                <div class="tap-hint" id="tapHint">
-                  <div class="tap-hint-ripple">
-                  </div>
-                  <span class="tap-hint-text">tap to reveal</span>
-                </div>
+<div id="tapHint" style="display:none"></div>
               </div>
               <div class="card-face card-face-front" id="cardFrontFace"></div>
             </div>
@@ -6463,6 +6460,12 @@ function goTo(id) {
   //        so the GPU isn't fighting canvas draws during the fade ──
   if (window._stopAllAnims) window._stopAllAnims(id);
 
+  // Se stiamo andando AL game, nascondi subito cardScene per evitare flash della carta precedente
+  if (id === 'game') {
+    var _csHide = document.getElementById('cardScene');
+    if (_csHide) _csHide.style.visibility = 'hidden';
+  }
+
   // ── 2. Show the incoming screen off-screen (opacity:0, translated) ──
   next.style.cssText = '';
   next.classList.remove('active', 'exit');
@@ -6549,6 +6552,7 @@ function goTo(id) {
           });
           _t('initGamePage'); initGamePage(); _t('initGamePage');
         }
+
         if (id === 'auth-screen') idle(() => initAuthSpiralBg());
         if (id === 'unlock')      idle(() => initUnlockStars());
         if (id === 'name-entry')  {
@@ -6974,8 +6978,10 @@ function showModeSelection() {
     // Pulisci la card per evitare che rimanga in background
     const ff = document.getElementById('cardFrontFace');
     if (ff) ff.innerHTML = '';
+    window._lastCardFrontId = null; // reset cache per evitare flash card precedente
     const c3d = document.getElementById('card3d');
-    if (c3d) c3d.classList.remove('is-flipped');
+    // Teniamo is-flipped per evitare flash del dorso, ma nascondiamo la card
+    if (c3d) c3d.style.opacity = '0';
     requestAnimationFrame(() => requestAnimationFrame(() => _openModeSelectionModal()));
     return;
   }
@@ -7354,9 +7360,6 @@ function pickOfflineMode() {
 
   // 3. A metà espansione: naviga e fai sparire il modal
   setTimeout(function() {
-    // Pre-warm card during transition
-    if (typeof initGamePage === 'function') initGamePage();
-
     // Crea overlay fixed che mantiene il colore mentre il modal si rimuove
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:9998;pointer-events:none;background:radial-gradient(circle at 50% 40%, rgb(8,32,14), rgb(2,10,4));opacity:1;transition:none;';
@@ -7535,6 +7538,8 @@ function _showWelcomeContent() {
     lp.style.display = '';
   }
   if (gs) { gs.style.transition = 'opacity 0.3s ease'; gs.style.opacity = '1'; }
+  // Ridisegna il dorso della card sulla mini card Let's Play
+  setTimeout(function() { if (typeof window._refreshLetsPlaySpiral === 'function') window._refreshLetsPlaySpiral(); }, 100);
 }
 
 function backFromModeModal() {
@@ -9495,10 +9500,14 @@ function initGamePage() {
   deckIndex = 0;
   _cardHistory = [];
   _historyPos  = -1;
-  // Reset card render cache flags so cards are redrawn fresh
-  // NOTA: _lastCardFrontId NON viene resettato — il contenuto della card
-  // è identico tra match successivi, resettarlo causa il freeze da 40s.
-  // _cardDrawCache (bitmap) sopravvive intenzionalmente al cambio match.
+  // Svuota subito il front face per evitare flash della domanda precedente
+  const _ff = document.getElementById('cardFrontFace');
+  if (_ff) { _ff.querySelectorAll('canvas').forEach(cv => { try { cv.width=1; cv.height=1; } catch(e){} }); _ff.innerHTML = ''; }
+  // Ripristina opacità card (potrebbe essere stata nascosta al back)
+  const _c3d = document.getElementById('card3d');
+  if (_c3d) { _c3d.style.opacity = ''; _c3d.style.transition = 'none'; }
+  // Reset lastCardFrontId per forzare ridisegno della nuova prima carta
+  window._lastCardFrontId = null;
   window._cardBackBuilt   = false;
   setTimeout(initSwipeGesture, 100);
 
@@ -12691,7 +12700,7 @@ function _drawSpiralCore(canvas, W, H, DPR) {
   // ── 6. SPIRAL ICON ──
   const spCanvas = document.createElement('canvas');
   drawSpiralIcon(spCanvas);
-  const spSize = 98;
+  const spSize = Math.round(W * 0.26); // leggermente più piccola
   ctx.drawImage(spCanvas, cx - spSize/2, H * 0.736 - spSize/2, spSize, spSize);
 
   // ── 7. ORNATE GOLDEN FRAME - doppia cornice (copiata da deck) ──
@@ -12762,7 +12771,8 @@ function _drawSpiralCore(canvas, W, H, DPR) {
   frameCorner(f9,f9,1,1); frameCorner(W-f9,f9,-1,1);
   frameCorner(f9,H-f9,1,-1); frameCorner(W-f9,H-f9,-1,-1);
 
-  // ── 8. TESTO FOOTER ──
+  // ── 8. TESTO FOOTER — solo su card grande (non Let's Play) ──
+  if (W > 150) {
   const footY = H - 49;
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 
@@ -12786,6 +12796,7 @@ function _drawSpiralCore(canvas, W, H, DPR) {
   ctx.globalAlpha = 1;
   ctx.fillText('Bond & Awareness', cx, footY);
   ctx.shadowBlur = 0;
+  }
 
   // ── 9. VIGNETTE ──
   const vig = ctx.createRadialGradient(cx, cy, Math.min(W,H)*0.25, cx, cy, Math.max(W,H)*0.82);
@@ -12964,27 +12975,16 @@ function flipCard() {
     }
     return;
   }
+  // Click manuale durante l'attesa auto-flip: cancella il timer e flippa subito
+  if (window._autoFlipTimer) { clearTimeout(window._autoFlipTimer); window._autoFlipTimer = null; }
   c3d.classList.add('is-flipped');
+  gameStarted = true;
   if (!state._bellPlayed) { state._bellPlayed = true; playBell(); }
   const hint = document.getElementById('tapHint');
   if (hint) { hint.style.display = 'none'; }
-  // Registra la prima carta nello storico swipe
   if (state.isOffline && _cardHistory.length === 0) {
     _cardHistory.push({ questionIndex: state.questionIndex, deckIndex: deckIndex });
     _historyPos = 0;
-  }
-  // Redraw front canvas immediately after flip - on the first card the canvas
-  // was built while the front face was hidden (display:none / CSS transform back),
-  // so some browsers silently discard the draw. Re-issuing it here guarantees
-  // the canvas is painted when it becomes visible.
-  if (!gameStarted) {
-    gameStarted = true;
-    const card = typeof getCurrentCard === 'function' ? getCurrentCard() : (state.currentCard || null);
-    if (card) {
-      const langCode = state.selectedLang ? state.selectedLang.code : 'en';
-      buildCardBack();
-      buildCardFront(card, langCode);
-    }
   }
   _t('flipCard');
 }
@@ -13235,11 +13235,6 @@ function buildCardFront(card, langCode, overrideText) {
     const fz = document.createElement('div'); fz.className = 'card-fruit-zone';
     const fc = document.createElement('canvas'); fz.appendChild(fc); ov.appendChild(fz);
     ff.appendChild(ov);
-    // ── Blocca input durante il render per evitare che le keypress vengano perse ──
-    (function() {
-      var _inp = document.getElementById('answerInput');
-      if (_inp && !_inp.disabled) { _inp.disabled = true; _inp._drawBlocked = true; }
-    })();
     _scheduleCardDraw((function(_gen, _bgC, _fc, _card) { return function() {
       if (window._cardFrontDrawGen !== _gen) return;
       drawWhiteBG(_bgC);
@@ -13248,9 +13243,6 @@ function buildCardFront(card, langCode, overrideText) {
       } else {
         drawSpiralIcon(_fc);
       }
-      // ── Riabilita input ora che la card è visibile ──
-      var _inp2 = document.getElementById('answerInput');
-      if (_inp2 && _inp2._drawBlocked) { _inp2.disabled = false; _inp2._drawBlocked = false; _inp2.focus(); }
       _t('buildCardFront');
     }; })(_myGen, bgC, fc, card));
   }
@@ -13314,18 +13306,43 @@ function loadQuestion() {
   const hint = document.getElementById('tapHint');
 
   if (!gameStarted) {
+    // Mostra dorso, poi auto-flip animato per offline/solo
+    const _isOfflineSolo = state.isOffline || state.isSolo;
     if (c3d) {
       c3d.style.transition = 'none';
       c3d.classList.remove('is-flipped');
-      // Schedule re-enable of transition on next frame to avoid needing offsetWidth read
       requestAnimationFrame(() => { c3d.style.transition = ''; });
     }
     const isOnlineWaiting = !state.isSolo && !state.isOffline && !state.matchId;
-    if (hint) { hint.style.display = isOnlineWaiting ? 'none' : 'block'; hint.style.opacity = '1'; }
-    // Usa _scheduleCardDraw-style: se la tab e' nascosta salva per visibilitychange,
-    // altrimenti esegui al prossimo rAF. Evita freeze da rAF/setTimeout congelati in background.
+    if (hint) { hint.style.display = (isOnlineWaiting || _isOfflineSolo) ? 'none' : 'block'; hint.style.opacity = '1'; }
+    if (c3d) c3d.style.opacity = '0';
     (function() {
-      var _cb = function() { buildCardBack(); buildCardFront(card, langCode); };
+      var _cb = function() {
+        buildCardBack();
+        buildCardFront(card, langCode);
+        requestAnimationFrame(function(){
+          var el = document.getElementById('card3d');
+          if (el) el.style.opacity = '';
+          var cs = document.getElementById('cardScene');
+          if (cs) cs.style.visibility = '';
+          // Auto-flip animato per offline/solo dopo 800ms
+          if (_isOfflineSolo) {
+            window._autoFlipTimer = setTimeout(function() {
+              window._autoFlipTimer = null;
+              var c = document.getElementById('card3d');
+              if (c && !c.classList.contains('is-flipped')) {
+                c.classList.add('is-flipped');
+                gameStarted = true;
+                if (!state._bellPlayed) { state._bellPlayed = true; if (typeof playBell === 'function') playBell(); }
+                if (state.isOffline && _cardHistory.length === 0) {
+                  _cardHistory.push({ questionIndex: state.questionIndex, deckIndex: deckIndex });
+                  _historyPos = 0;
+                }
+              }
+            }, 800);
+          }
+        });
+      };
       if (!document.hidden) {
         requestAnimationFrame(_cb);
       } else {
@@ -13334,14 +13351,36 @@ function loadQuestion() {
       }
     })();
   } else {
+    // Carte successive: mostra dorso poi auto-flip per offline/solo, flip diretto per online
+    const _isOfflineSolo2 = state.isOffline || state.isSolo;
     if (c3d) {
       c3d.style.transition = 'none';
-      c3d.classList.add('is-flipped');
+      if (_isOfflineSolo2) {
+        c3d.classList.remove('is-flipped'); // mostra dorso
+      } else {
+        c3d.classList.add('is-flipped');
+      }
       requestAnimationFrame(() => { c3d.style.transition = ''; });
     }
     if (hint) hint.style.display = 'none';
     (function() {
-      var _cb2 = function() { buildCardFront(card, langCode); };
+      var _cb2 = function() {
+        if (_isOfflineSolo2) buildCardBack();
+        buildCardFront(card, langCode);
+        requestAnimationFrame(function(){
+          var cs = document.getElementById('cardScene'); if(cs) cs.style.visibility='';
+          if (_isOfflineSolo2) {
+            window._autoFlipTimer = setTimeout(function() {
+              window._autoFlipTimer = null;
+              var c = document.getElementById('card3d');
+              if (c && !c.classList.contains('is-flipped')) {
+                c.classList.add('is-flipped');
+                if (!state._bellPlayed) { state._bellPlayed = true; if (typeof playBell === 'function') playBell(); }
+              }
+            }, 800);
+          }
+        });
+      };
       if (!document.hidden) {
         requestAnimationFrame(_cb2);
       } else {
@@ -14217,6 +14256,8 @@ function _resetRoundUI() {
   // Cancel any pending deferred UI timers from the previous round
   if (window._sqbTimer) { clearTimeout(window._sqbTimer); window._sqbTimer = null; }
   if (window._expandTimer) { clearTimeout(window._expandTimer); window._expandTimer = null; }
+  if (window._autoFlipTimer) { clearTimeout(window._autoFlipTimer); window._autoFlipTimer = null; }
+  state._bellPlayed = false;
 
   state.opponentAnswer = null;
   state.currentAnswer  = null;
@@ -14256,6 +14297,7 @@ function nextQuestion() {
     _tLog('➡️ NEXT Q: offline — q#' + (state.questionIndex+1), '#aaa');
     _dbgEvent('game', 'next offline q:' + (state.questionIndex+1), '#aaa');
     _resetRoundUI();
+    gameStarted = true;
     state.questionIndex++; deckIndex++;
     if (deckIndex >= shuffledDeck.length) buildShuffledDeck();
     offlineCurrentTurn = 0;
@@ -19819,14 +19861,35 @@ document.addEventListener('visibilitychange', () => {
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.2rem;
     cursor:pointer;
     pointer-events:auto;
-    overflow:visible;
+    overflow:hidden;
   ">
-    <div class="lp-question-mark">?</div>
-    <span style="font-family:'Caveat',cursive;font-size:1rem;font-weight:600;letter-spacing:0.04em;color:rgba(80,50,10,0.88);text-transform:none;">Let's Play</span>
+    <canvas id="letsplay-spiral-canvas" style="position:absolute;inset:0;width:100%;height:100%;border-radius:18px;opacity:1;z-index:0;"></canvas>
+    <!-- Pulsing radar rings — centrati sul cerchio dorato: cx=W/2=45px, cy=H*0.385=46px -->
+    <div style="position:absolute;top:46px;left:45px;transform:translate(-50%,-50%);width:43px;height:43px;z-index:2;pointer-events:none;">
+      <div class="lp-radar-ring"></div>
+      <div class="lp-radar-ring lp-radar-ring-2"></div>
+      <div class="lp-radar-ring lp-radar-ring-3"></div>
+    </div>
+    <span style="position:absolute;bottom:8px;left:0;right:0;text-align:center;z-index:3;font-family:'Caveat',cursive;font-size:1.31rem;font-weight:600;letter-spacing:0.04em;color:rgba(235,225,200,0.95);text-transform:none;text-shadow:0 1px 8px rgba(0,0,0,0.6);">Let's Play</span>
   </button>
 </div>
 
 <style>
+  .lp-radar-ring {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid rgba(180,150,60,0.80);
+    border-radius: 50%;
+    opacity: 0;
+    animation: lpRadarPulse 4s ease-out 1.65s infinite;
+  }
+  .lp-radar-ring-2 { animation-delay: 2.98s; }  /* 1.65 + 1.33 */
+  .lp-radar-ring-3 { animation-delay: 4.31s; }  /* 1.65 + 2.66 */
+  @keyframes lpRadarPulse {
+    0%   { transform: scale(1.2); opacity: 0.9; border-color: rgba(255,210,80,0.95); }
+    60%  { border-color: rgba(220,170,50,0.5); }
+    100% { transform: scale(2.8); opacity: 0; border-color: rgba(200,150,30,0); }
+  }
   @keyframes circleReveal {
     from { clip-path: inset(35% 10% 35% 10% round 28px); }
     to   { clip-path: inset(0% 0% 0% 0% round 0px); }
@@ -19877,7 +19940,17 @@ document.addEventListener('visibilitychange', () => {
       el.style.transition = 'opacity 0.2s ease';
       el.style.opacity    = '1';
     });
-    btn.style.background = 'linear-gradient(145deg, #fdf8f0 0%, #f5eedd 40%, #ede4d0 100%)';
+    // Usa _drawSpiralCore — identico al dorso della card di gioco
+  btn.style.background = 'none';
+  (function() {
+    var _lpc = document.getElementById('letsplay-spiral-canvas');
+    if (!_lpc || typeof _drawSpiralCore !== 'function') return;
+    var DPR = Math.min(window.devicePixelRatio || 2, 2);
+    var W = 90, H = 120;
+    _lpc.style.width  = W + 'px';
+    _lpc.style.height = H + 'px';
+    _drawSpiralCore(_lpc, W, H, DPR);
+  })();
     btn.style.border     = 'none';
     btn.style.boxShadow  = '0 0 0 2px rgba(180,150,60,0.55), 0 0 0 4px rgba(180,150,60,0.18), 0 8px 32px rgba(0,0,0,0.45)';
     btn.style.pointerEvents = 'auto'; // ripristina click dopo animazione
@@ -19893,11 +19966,27 @@ document.addEventListener('visibilitychange', () => {
   const _breathStyle = document.createElement('style');
   _breathStyle.textContent = `
     @keyframes _letsplayBreathe {
-      0%, 100% { transform: translate(-50%, -50%) scale(1); }
-      50%       { transform: translate(-50%, -50%) scale(1.032); }
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow:
+          0 0 0 2px rgba(180,150,60,0.55),
+          0 0 0 4px rgba(180,150,60,0.18),
+          0 0 18px rgba(180,150,60,0.35),
+          0 0 40px rgba(120,180,60,0.18),
+          0 8px 32px rgba(0,0,0,0.45);
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.06);
+        box-shadow:
+          0 0 0 2px rgba(210,180,80,0.80),
+          0 0 0 6px rgba(200,170,60,0.28),
+          0 0 32px rgba(200,170,60,0.60),
+          0 0 70px rgba(100,200,80,0.28),
+          0 12px 40px rgba(0,0,0,0.50);
+      }
     }
     #letsplay-wrapper.breathing {
-      animation: _letsplayBreathe 7s ease-in-out infinite;
+      animation: _letsplayBreathe 3s ease-in-out infinite;
     }
   @keyframes _letsplayFadeIn {
     from { opacity: 0; }
@@ -19908,7 +19997,7 @@ document.addEventListener('visibilitychange', () => {
   wrapper.classList.add('breathing');
 
   // ── Initialise card appearance via JS so hover/state-machine can freely override ──
-  btn.style.background = 'linear-gradient(145deg, #fdf8f0 0%, #f5eedd 40%, #ede4d0 100%)';
+  btn.style.background = 'none';
   btn.style.boxShadow  = '0 0 0 2px rgba(180,150,60,0.55), 0 0 0 4px rgba(180,150,60,0.18), 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)';
   btn.style.border     = 'none';
 
@@ -19917,7 +20006,7 @@ document.addEventListener('visibilitychange', () => {
     if (state !== 'idle') return;
     _hovered = true;
     wrapper.classList.remove('breathing');
-    btn.style.background = 'linear-gradient(145deg, #fff8e8 0%, #fdefc8 40%, #f5e2a8 100%)';
+    btn.style.background = 'none';
     btn.style.border     = 'none';
     btn.style.boxShadow  = '0 0 0 2px rgba(200,160,40,0.8), 0 0 0 5px rgba(200,160,40,0.22), 0 12px 40px rgba(0,0,0,0.5)';
     setSize(90 * 1.08, 'width 0.28s cubic-bezier(0.16,1,0.3,1)');
@@ -19926,7 +20015,7 @@ document.addEventListener('visibilitychange', () => {
     _hovered = false;
     if (state !== 'idle') return;
     wrapper.classList.add('breathing');
-    btn.style.background = 'linear-gradient(145deg, #fdf8f0 0%, #f5eedd 40%, #ede4d0 100%)';
+    btn.style.background = 'none';
     btn.style.border     = 'none';
     btn.style.boxShadow  = '0 0 0 2px rgba(180,150,60,0.55), 0 0 0 4px rgba(180,150,60,0.18), 0 8px 32px rgba(0,0,0,0.45)';
     setSize(90, 'width 0.28s cubic-bezier(0.16,1,0.3,1)');
@@ -20069,6 +20158,20 @@ document.addEventListener('visibilitychange', () => {
       wrapper.style.transform = 'translate(-50%, -50%)';
     }
   }
+  // Disegna il dorso della card subito all'avvio
+  resetToSmall(false);
+
+  // Ridisegna quando si torna alla welcome (es. dopo un match) — la card back reale potrebbe ora essere in cache
+  window._refreshLetsPlaySpiral = function() {
+    var _lpc = document.getElementById('letsplay-spiral-canvas');
+    if (!_lpc || typeof _drawSpiralCore !== 'function') return;
+    var DPR = Math.min(window.devicePixelRatio || 2, 2);
+    var W = 90, H = 120;
+    _lpc.style.width  = W + 'px';
+    _lpc.style.height = H + 'px';
+    _drawSpiralCore(_lpc, W, H, DPR);
+  };
+
   // Ricalcola ogni volta che la welcome screen diventa attiva
   adjustLetsPlayPosition();
   setTimeout(adjustLetsPlayPosition, 200);
