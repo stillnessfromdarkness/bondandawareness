@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="preload" href="bg.png" as="image" fetchpriority="high">
+<meta name="theme-color" content="#000814">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bond & Awareness">
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Bond%20%26%20Awareness%22,%22short_name%22:%22Bond%20%26%20Awareness%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23000814%22,%22theme_color%22:%22%23000814%22,%22icons%22:[{%22src%22:%22data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==%22,%22sizes%22:%22any%22,%22type%22:%22image/png%22}]}">
+<title>Bond & Awareness - Deep Questions Game</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=DM+Sans:wght@300;400;500;600&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=DM+Sans:wght@300;400;500;600&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
+
+<!-- CSS -->
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/letsplay.css">
+
+<!-- Beta gate (must run before anything else) -->
+<script src="js/beta-gate.js"></script>
+<!-- Supabase SDK loader -->
+<script src="js/supabase-loader.js"></script>
+<!-- Init: direct-play + invite panel IIFEs -->
+<script src="js/init.js"></script>
+<!-- Favicon spiral generator -->
+<script src="js/favicon.js"></script>
+<!-- Vercel analytics -->
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<div id="auth-screen" class="screen">
+  <canvas id="auth-spiral-bg">
+  </canvas>
+  <div id="auth-inner-circle">
+    <div class="auth-card-frame">
+    </div>
+  </div>
+  <div class="mandala-bg">
+    <canvas id="authCanvas">
+    </canvas>
+  </div>
+  <div class="auth-content">
+    <div class="auth-logo">
+      Bond&amp;Awareness
+    </div>
+    <p class="auth-tagline">
+      Deep Questions Game
+    </p>
+    <button class="auth-google-btn" style="position:relative;" onclick="handleGoogleAuth()">
+    <svg class="auth-google-icon" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    Continue with Google
+    </button>
+    <div class="auth-or">
+      <span>
+      or
+      </span>
+    </div>
+    <input class="auth-input" id="auth-email-landing" type="email" placeholder="Enter your email" autocomplete="email">
+    <button class="auth-email-btn" id="auth-email-btn" onclick="handleEmailContinue()">
+    Continue with email
+    </button>
+    <button class="auth-guest-link hover-auth-guest" onclick="continueAsGuest()" style="margin-top:1.5rem;color:rgba(255,255,255,0.6);font-size:0.85rem;border-bottom:1px solid rgba(255,255,255,0.25);padding-bottom:2px;transition:color 0.2s,border-color 0.2s;">
+    Continue without account
+    </button>
+  </div>
+</div>
+<div id="auth-otp" class="screen">
+  <div class="mandala-bg">
+    <canvas id="authOtpCanvas">
+    </canvas>
+  </div>
+  <div class="auth-content">
+    <div class="auth-form-header">
+      <span class="auth-form-title">
+      Check your email
+      </span>
+    </div>
+    <p class="otp-hint">
+      We sent a 6-digit code to
+      <br>
+      <span id="otp-email-display">
+      your email
+      </span>
+    </p>
+    <div class="otp-boxes" id="otp-boxes">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+      <input class="otp-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+    </div>
+    <div class="auth-error" id="otp-error">
+    </div>
+    <button class="auth-email-btn" id="otp-verify-btn" onclick="handleVerifyOtp()">
+    Verify
+    </button>
+    <button class="otp-resend" id="otp-resend-btn" onclick="handleResendOtp()">
+    Resend code
+    </button>
+  </div>
+</div>
+<div id="auth-username" class="screen">
+  <div class="username-content">
+    <div class="username-logo">
+      Bond&amp;Awareness
+    </div>
+    <p class="username-tagline">
+      Choose your username
+    </p>
+    <p class="username-label">
+      Username
+    </p>
+    <div class="username-input-wrap">
+      <input class="username-input" id="username-input" type="text"
+        placeholder="yourname" autocomplete="off" maxlength="24"
+        oninput="handleUsernameInput()"
+        onkeydown="if(event.key==='Enter') handleUsernameSubmit()">
+    </div>
+    <div class="username-status" id="username-status">
+    </div>
+    <p class="username-hint">
+      Only letters, numbers and underscores.
+      <br>
+      This will be visible to other players.
+    </p>
+    <button class="username-submit" id="username-submit-btn" onclick="handleUsernameSubmit()" disabled>
+    Continue
+    </button>
+  </div>
+</div>
+<div id="profile" class="screen">
+  <div class="profile-layout">
+    <nav class="profile-sidemenu">
+      <button class="profile-sidemenu-btn active" id="sidemenu-profile" onclick="switchProfileTab('profile')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      Profilo
+      </button>
+      <button class="profile-sidemenu-btn" id="sidemenu-raccolta" onclick="switchProfileTab('raccolta')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+      La mia raccolta
+      </button>
+    </nav>
+    <div class="profile-main" id="profile-main-view">
+      <div class="profile-header">
+        <span class="profile-title">
+        My Profile
+        </span>
+        <div class="profile-header-actions">
+          <button class="profile-community-btn" onclick="openFriendsOverlay()" style="position:relative;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Friends
+          <span id="profile-fr-badge" style="display:none;min-width:16px;height:16px;background:#ef4444;border-radius:99px;font-size:0.58rem;font-weight:700;color:white;align-items:center;justify-content:center;padding:0 3px;font-family:'DM Sans',sans-serif;line-height:1;margin-left:2px;">
+          </span>
+          </button>
+        </div>
+      </div>
+      <div class="profile-body">
+        <div class="profile-avatar-wrap">
+          <div style="position:relative;display:inline-block;">
+            <div class="profile-spiral-wrap" id="profile-spiral-wrap" onclick="toggleStatusMenu()" style="cursor:pointer;">
+              <canvas class="profile-spiral-canvas" id="profileSpiralCanvas" width="160" height="160">
+              </canvas>
+              <img id="profile-photo-img" src="" alt="" style="position:absolute;inset:12px;border-radius:50%;width:calc(100% - 24px);height:calc(100% - 24px);object-fit:cover;display:none;pointer-events:none;" />
+              <div class="profile-status-dot online" id="profile-status-dot">
+              </div>
+              <div class="status-menu" id="status-menu">
+                <div class="status-menu-item" onclick="setUserStatus('online')">
+                  <span class="status-dot-sm" style="background:#22c55e">
+                  </span>
+                  Online
+                </div>
+                <div class="status-menu-item" onclick="setUserStatus('offline')">
+                  <span class="status-dot-sm" style="background:#ef4444">
+                  </span>
+                  Offline
+                </div>
+              </div>
+            </div>
+            <button onclick="document.getElementById('profile-photo-input').click()" title="Change photo" style="
+              position:absolute;bottom:14px;right:14px;
+              width:28px;height:28px;border-radius:50%;
+              background:#1B9AAA;border:2px solid #ffffff;
+              display:flex;align-items:center;justify-content:center;
+              cursor:pointer;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,0.15);
+              transition:background 0.15s;font-size:0.75rem;color:white;
+            " >
+            📷
+            </button>
+            <input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="handleProfilePhotoChange(event)" />
+          </div>
+          <span class="profile-username-display" id="profile-username-display">
+          </span>
+        </div>
+        <div class="profile-stats">
+          <div class="profile-stat">
+            <div class="profile-stat-num" id="stat-sessions">
+              0
+            </div>
+            <div class="profile-stat-label">
+              Sessions
+            </div>
+          </div>
+          <div class="profile-stat">
+            <div class="profile-stat-num" id="stat-questions">
+              0
+            </div>
+            <div class="profile-stat-label">
+              Questions
+            </div>
+          </div>
+          <div class="profile-stat">
+            <div class="profile-stat-num" id="stat-friends">
+              0
+            </div>
+            <div class="profile-stat-label">
+              Friends
+            </div>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-card-title">
+            About me
+          </div>
+          <div class="profile-field">
+            <textarea class="profile-field-textarea" id="profile-bio-input" placeholder="Write something about yourself...">
+            </textarea>
+          </div>
+        </div>
+        <button class="profile-save-btn" onclick="handleSaveProfile()">
+        Save
+        </button>
+        <button class="profile-logout-btn" onclick="handleLogOut()">
+        Log Out
+        </button>
+      </div>
+    </div>
+    <div class="profile-main" id="profile-raccolta-view" style="display:none;">
+      <div class="raccolta-header">
+        <span class="raccolta-title" id="raccolta-title">
+        🌿 My Collection
+        </span>
+      </div>
+      <div class="raccolta-body">
+        <div class="garden-section" id="garden-section">
+          <div class="garden-header-row">
+            <div class="garden-section-title" id="garden-section-title">
+              Unlocked fruits
+            </div>
+            <div class="garden-progress-label" id="garden-prog-label">
+              0 / 16
+            </div>
+          </div>
+          <div class="garden-progress-track">
+            <div class="garden-progress-fill" id="garden-prog-fill" style="width:0%">
+            </div>
+          </div>
+          <div class="garden-grid" id="garden-grid-profile">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="social" class="screen">
+  <div class="social-header">
+    <span class="profile-title">
+    Community
+    </span>
+  </div>
+  <div class="social-tabs">
+    <button class="social-tab active" id="tab-friends" onclick="switchSocialTab('friends')">
+    Friends
+    </button>
+    <button class="social-tab" id="tab-discover" onclick="switchSocialTab('discover')">
+    Discover
+    </button>
+    <button class="social-tab" id="tab-requests" onclick="switchSocialTab('requests')">
+    Requests
+    </button>
+  </div>
+  <div class="social-body" id="social-body">
+  </div>
+</div>
+<div id="welcome" class="screen active">
+  <div class="mandala-bg">
+    <canvas id="welcomeCanvas" style="will-change:transform;">
+    </canvas>
+  </div>
+  <button onclick="goTo('language')" style="
+    position:absolute; top:1.1rem; left:1.2rem; z-index:10;
+    background:rgba(27,154,170,0.18); border:1px solid rgba(72,202,228,0.55);
+    border-radius:20px; padding:0.32rem 0.75rem;
+    color:rgba(72,202,228,0.95); font-family:'DM Sans',sans-serif;
+    font-size:0.72rem; letter-spacing:0.06em; cursor:pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease; display:flex; align-items:center; gap:0.4rem;
+    box-shadow:0 0 10px rgba(27,154,170,0.35), inset 0 0 8px rgba(72,202,228,0.08);
+    text-shadow:0 0 8px rgba(72,202,228,0.7);" class="hover-teal-glow">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <ellipse cx="12" cy="12" rx="4.5" ry="10"/>
+    <line x1="2" y1="9" x2="22" y2="9"/>
+    <line x1="2" y1="15" x2="22" y2="15"/>
+  </svg>
+  <span id="welcome-lang-label">
+  EN
+  </span>
+  </button>
+  <button id="signin-btn" class="hover-teal-glow" onclick="goTo('auth-screen')" style="
+    position:absolute; top:1.1rem; right:1.2rem; z-index:10;
+    background:none; border:1px solid rgba(255,255,255,0.18);
+    border-radius:20px; padding:0.32rem 0.85rem;
+    color:rgba(255,255,255,0.65); font-family:'DM Sans',sans-serif;
+    font-size:0.74rem; letter-spacing:0.04em; cursor:pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  ">
+  Login / Register
+  </button>
+  <div class="user-pill" id="user-pill" style="display:none;" onclick="goTo('profile')">
+    <div class="user-avatar" id="user-avatar">
+      <span id="user-avatar-letter">
+      ?
+      </span>
+      <span class="fr-badge" id="pill-fr-badge" style="display:none">
+      </span>
+      <svg class="ring-svg-small" viewBox="0 0 40 40">
+        <circle class="ring-circle-small" cx="20" cy="20" r="18"/>
+      </svg>
+    </div>
+    <div class="user-pill-info">
+      <span class="user-pill-name-text" id="user-pill-name">
+      Guest
+      </span>
+      <span class="user-pill-link">
+      View Profile
+      </span>
+    </div>
+  </div>
+  <div class="welcome-content" id="welcome-main-content" style="
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    overflow: hidden;
+    padding: 0 1.8rem;
+    padding-top: max(3.2rem, env(safe-area-inset-top, 3.2rem));
+    padding-bottom: max(1.4rem, env(safe-area-inset-bottom, 1.4rem));
+    box-sizing: border-box;
+  ">
+    <div style="text-align:center; flex-shrink:0;">
+      <p class="welcome-tagline" style="
+        font-family: 'Caveat', cursive;
+        font-size: clamp(0.85rem, 3vw, 1rem);
+        color: rgba(72,202,228,0.65);
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+      ">
+        Welcome to
+      </p>
+      <h1 class="welcome-title" style="
+        font-size: clamp(2rem, 9vw, 3.2rem);
+        margin-bottom: 0.35rem;
+        line-height: 0.95;
+      ">
+        Bond &amp;
+        <br>
+        Awareness
+      </h1>
+      <p style="
+        font-family: 'Caveat', cursive;
+        font-size: clamp(0.85rem, 3.2vw, 1rem);
+        font-weight: 400;
+        color: rgba(255,255,255,0.58);
+        letter-spacing: 0.03em;
+        text-align: center;
+        line-height: 1.4;
+        margin: 0.1rem 0 0.2rem;
+        -webkit-text-fill-color: rgba(255,255,255,0.58);
+        text-shadow: 0 0 16px rgba(72,202,228,0.2);
+      ">
+        A game of deep connection, presence &amp; self-discovery
+      </p>
+      <div class="welcome-divider" style="margin: 0.2rem auto 0;">
+      </div>
+    </div>
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 0;
+      padding-top: 1.8rem;
+      padding-bottom: 1.2rem;
+    ">
+      <div id="letsplay-inflow" style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 150px;
+        width: 100%;
+        pointer-events: none;
+      ">
+      </div>
+    </div>
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 20;
+    ">
+      <button class="btn-share" onclick="shareApp()" style="
+        opacity: 0.55;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      "
+        onmouseenter="this.style.opacity='0.9';this.style.transform='scale(1.1)'"
+        onmouseleave="this.style.opacity='0.55';this.style.transform='scale(1)'"
+      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="18" cy="5" r="3"/>
+        <circle cx="6" cy="12" r="3"/>
+        <circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      </button>
+      <div style="
+        display: flex;
+        gap: 0.55rem;
+        justify-content: center;
+        opacity: 0.35;
+        filter: grayscale(1);
+        transform: scale(0.7);
+        transform-origin: center top;
+        margin-top: -0.3rem;
+        margin-bottom: -1rem;
+      ">
+        <div class="app-badge" onclick="appBadgeTap(this)" ontouchstart="appBadgeTap(this)" style="max-width:130px;">
+          <span class="badge-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="18" viewBox="0 0 512 512">
+            <defs>
+              <linearGradient id="gp1b" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00C3FF"/>
+                <stop offset="100%" stop-color="#008FD4"/>
+              </linearGradient>
+              <linearGradient id="gp2b" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#FFD500"/>
+                <stop offset="100%" stop-color="#FF8A00"/>
+              </linearGradient>
+              <linearGradient id="gp3b" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FF3A44"/>
+                <stop offset="100%" stop-color="#C31162"/>
+              </linearGradient>
+              <linearGradient id="gp4b" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#32DF76"/>
+                <stop offset="100%" stop-color="#00A550"/>
+              </linearGradient>
+            </defs>
+            <path d="M48 28.6l219.7 219.7L48 468.2c-8.5-5.2-14-14.6-14-25.2V53.8C34 43.2 39.5 33.8 48 28.6z" fill="url(#gp1b)"/>
+            <path d="M348.5 180l-280.7-151.4L267.7 248.3z" fill="url(#gp2b)"/>
+            <path d="M267.7 248.3L67.8 448.5l280.7-151.4z" fill="url(#gp3b)"/>
+            <path d="M348.5 331.8l-80.8-83.5 80.8-68.3 68.2 37.2c19.4 10.5 19.4 37.8 0 48.3z" fill="url(#gp4b)"/>
+          </svg>
+          </span>
+          <span>
+          <span class="badge-sub">
+          GET IT ON
+          </span>
+          <span class="badge-name">
+          Google Play
+          </span>
+          </span>
+          <span class="app-badge-tooltip">
+          Not available yet
+          </span>
+        </div>
+        <div class="app-badge" onclick="appBadgeTap(this)" ontouchstart="appBadgeTap(this)" style="max-width:130px;">
+          <span class="badge-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 814 1000">
+            <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.9 0 703.2 0 621.2c0-198.8 130.3-302.5 259.3-302.5 69.4 0 127 45.5 170.9 45.5 42.8 0 109.1-48.4 185.1-48.4 29.9 0 108.2 2.6 168.1 73.7zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z" fill="white"/>
+          </svg>
+          </span>
+          <span>
+          <span class="badge-sub">
+          DOWNLOAD ON THE
+          </span>
+          <span class="badge-name">
+          App Store
+          </span>
+          </span>
+          <span class="app-badge-tooltip">
+          Not available yet
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="print-deck" class="screen">
+  <div class="pd-inner">
+    <div class="pd-header">
+      <div class="pd-title">
+        Print the Deck
+      </div>
+      <div class="pd-subtitle">
+        52 cards · 16 decks · A4
+      </div>
+    </div>
+    <div class="pd-divider">
+    </div>
+    <p class="pd-desc">
+      Choose your language, open the file in your browser and click the print button. Cards print beautifully on A4, 9 per page.
+    </p>
+    <div class="pd-lang-grid">
+      <a class="pd-lang-btn" href="English/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇬🇧
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          English
+        </div>
+        <div class="pd-lang-sub">
+          en
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Italian/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇮🇹
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Italiano
+        </div>
+        <div class="pd-lang-sub">
+          it
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="French/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇫🇷
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Français
+        </div>
+        <div class="pd-lang-sub">
+          fr
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Spanish/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇪🇸
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Español
+        </div>
+        <div class="pd-lang-sub">
+          es
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="German/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇩🇪
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Deutsch
+        </div>
+        <div class="pd-lang-sub">
+          de
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Portuguese/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇵🇹
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Português
+        </div>
+        <div class="pd-lang-sub">
+          pt
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Russian/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇷🇺
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Русский
+        </div>
+        <div class="pd-lang-sub">
+          ru
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Chinese/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇨🇳
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          中文
+        </div>
+        <div class="pd-lang-sub">
+          zh
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Arabic/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇸🇦
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          العربية
+        </div>
+        <div class="pd-lang-sub">
+          ar
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Hebrew/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇮🇱
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          עברית
+        </div>
+        <div class="pd-lang-sub">
+          he
+        </div>
+      </div>
+      </a>
+      <a class="pd-lang-btn" href="Indonesian/deck_01_Strawberry_52cards.html" target="_blank">
+      <span class="pd-lang-flag">
+      🇮🇩
+      </span>
+      <div>
+        <div class="pd-lang-name">
+          Indonesia
+        </div>
+        <div class="pd-lang-sub">
+          id
+        </div>
+      </div>
+      </a>
+    </div>
+    <p class="pd-note">
+      Each link opens
+      <strong>
+      Deck 01 – Strawberry
+      </strong>
+      (52 cards). All 16 decks are in the same folder - change the filename to access the others.
+      <br>
+      <br>
+      🖨️ Print on 250g cardstock for best results.
+    </p>
+  </div>
+</div>
+<div id="name-entry" class="screen">
+  <canvas id="psychCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;">
+  </canvas>
+  <div class="name-entry-content">
+    <canvas id="nameEntrySpiralCanvas" class="sacred-geometry">
+    </canvas>
+    <h2 class="name-entry-title">
+      What shall we
+      <br>
+      call you?
+    </h2>
+    <p class="name-entry-subtitle">
+      any name you wish to carry
+      <br>
+      into this space
+    </p>
+    <div style="width:100%;max-width:320px;">
+      <input type="text" id="playerNameInput" class="name-input" placeholder="your name..." maxlength="20" autocomplete="off" onkeydown="if(event.key==='Enter')enterGame()" onfocus="this.select()"/>
+    </div>
+    <p class="name-hint">
+      it can be a word, a feeling, a symbol - anything
+    </p>
+    <button class="btn-primary" style="max-width:280px;margin-top:1.5rem;" onclick="enterGame()">
+    Enter the Space →
+    </button>
+  </div>
+</div>
+<div id="offline-names" class="screen">
+  <div class="offline-setup-content">
+    <div style="height:3.5rem;">
+    </div>
+    <h2 class="offline-setup-title" id="offlineSetupTitle">
+      Who's
+      <br>
+      playing?
+    </h2>
+    <div id="offlineCountControls" style="display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1.2rem;">
+    </div>
+    <div class="offline-names-list" id="offlineNamesList">
+    </div>
+    <button class="btn-primary" id="startOfflineBtn" style="max-width:280px;" onclick="startOfflineGame()">
+    Start Game →
+    </button>
+  </div>
+</div>
+<div id="instructions" class="screen">
+  <div class="instructions-inner">
+    <div class="page-header">
+      <span class="page-title-text" id="iHdr">
+      Before You Play
+      </span>
+      <div style="width:40px;">
+      </div>
+    </div>
+    <div class="instructions-scroll">
+      <div class="instructions-card">
+        <div class="inst-quote" id="iQuote">
+          "Be Here Now"
+        </div>
+        <div class="inst-author">
+          (Ram Dass)
+        </div>
+        <hr class="inst-divider">
+        <div class="inst-section-title" id="iS1">
+          🌿 The Opportunity
+        </div>
+        <p class="inst-text" id="iP1">
+          Bond & Awareness is an invitation to bring more presence and genuine connection into your life. A space to slow down, speak from the heart, and truly be heard.
+        </p>
+        <hr class="inst-divider">
+        <div class="inst-section-title" id="iS2">
+          🃏 What's in the Deck?
+        </div>
+        <p class="inst-text" id="iP2">
+          <strong>
+          Question Cards
+          </strong>
+          - prompts designed to spark deep reflection, each marked with a small fruit symbol.
+          <br>
+          <br>
+          <strong>
+          Fruit Cards
+          </strong>
+          - cards featuring only a fruit illustration. These act as wild cards to trigger shared storytelling.
+        </p>
+        <hr class="inst-divider">
+        <div class="inst-section-title" id="iS3">
+          🔔 Setting the Space
+        </div>
+        <p class="inst-text" id="iP3">
+          Find a quiet place to sit in a circle. Take one slow, collective breath to let the room settle into stillness.
+        </p>
+        <div class="inst-highlight" id="iGuardian">
+          <strong>
+          The Guardian of Presence:
+          </strong>
+          Designate one person to ring a bell or call for a shared breath whenever the energy becomes scattered - to bring everyone back to the now.
+        </div>
+        <hr class="inst-divider">
+        <div class="inst-section-title" id="iS4">
+          🌀 How to Play
+        </div>
+        <p class="inst-text" id="iP4">
+          The game moves
+          <strong>
+          clockwise
+          </strong>
+          around the circle.
+        </p>
+        <p class="inst-text" id="iTurn">
+          <strong>
+          The Turn
+          </strong>
+          - Draw the top card. If it's a Question Card, read it aloud and share your honest answer.
+        </p>
+        <p class="inst-text" id="iListen">
+          <strong>
+          The Art of Listening
+          </strong>
+          - While one person speaks, everyone else offers full, silent presence. Comments are not needed unless the speaker asks.
+        </p>
+        <div class="inst-highlight" id="iFruit">
+          ⊹
+          <strong>
+          Personal Somatic Shift:
+          </strong>
+          If your card includes a small fruit symbol, wait until you have finished expressing your answer. Then gently bring your awareness to the body area mapped to that fruit (see the Body Map below). This awareness stays with you as the round continues.
+          <br>
+          <br>
+          ⊹
+          <strong>
+          Collective Pause:
+          </strong>
+          If a Large Fruit card appears, the entire group brings attention together to the body center shown on the Body Map.
+          <br>
+          <br>
+          ⊹
+          <strong>
+          The Spiral:
+          </strong>
+          If a big Spiral card appears, the group enters 15 seconds of silent full-body awareness, slowly scanning the body from head to toe.
+          <br>
+          <br>
+          ⊹ Let awareness remain in the body as the circle continues.
+        </div>
+        <div class="body-map-container">
+          <div class="body-map-card" id="bodyMapCard">
+            <img id="__bmi1__" src="" alt="Body Map — Fruits &amp; Body Centers" loading="lazy">
+          </div>
+        </div>
+        <hr class="inst-divider">
+        <div class="inst-section-title" id="iS5">
+          🌸 The Spirit
+        </div>
+        <p class="inst-text" id="iP5">
+          This is not a competition, but an unfolding.
+        </p>
+        <div class="inst-highlight" id="iResist">
+          <strong>
+          On Resistance:
+          </strong>
+          If a question feels too personal, it is okay to pass. But notice that feeling - whatever you resist most has power over you. Leaning into resistance is often where the greatest freedom is found.
+        </div>
+        <div class="inst-action-row" style="margin-top:1.5rem;">
+          <button class="btn-review" onclick="window.open('https://play.google.com/store/apps/details?id=com.bondawareness.deeperconnection','_blank')">
+          Review Us ⭐
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="inst-bottom">
+      <button class="btn-primary" id="iPlayBtn" onclick="window._startDirectPlay ? window._startDirectPlay() : showModeSelection()">
+      Let's Play ✦
+      </button>
+    </div>
+  </div>
+</div>
+<div id="language" class="screen">
+  <div class="language-inner">
+    <div class="page-header">
+      <span class="page-title-text">
+      Select Language
+      </span>
+      <div style="width:40px;">
+      </div>
+    </div>
+    <div class="lang-grid" id="langGrid">
+    </div>
+  </div>
+</div>
+<div id="game" class="screen">
+  <div class="mandala-bg">
+    <canvas id="gameCanvas">
+    </canvas>
+  </div>
+  <div class="game-inner">
+    <div class="game-header">
+
+      <!-- ══════════════════════════════════════════
+           TOP ROW: Invite pill (left) · How to Play (right)
+           ══════════════════════════════════════════ -->
+      <div class="ghdr-top-row">
+
+        <!-- Invite / Join pill -->
+        <button id="hdrInviteBtn" class="ghdr-invite-pill" onclick="window._showInvitePanel()">
+          <span class="ghdr-invite-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/>
+              <line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+          </span>
+          <span class="ghdr-invite-label">Invite &amp; Join</span>
+        </button>
+
+        <!-- hidden matchmaking state elements (kept for JS compat) -->
+        <div id="hdrMatchmaking" style="display:none;align-items:center;gap:0.3rem;cursor:default;">
+          <span class="hdr-match-dot"></span>
+        </div>
+        <div id="hdrMatchFound" style="display:none;align-items:center;gap:0.3rem;"></div>
+        <div id="hdrMatchIdle"></div>
+
+        <!-- Turn pill (hidden until online match) -->
+        <div id="onlineTurnPill" class="online-turn-pill my-turn" style="display:none;">
+          <div class="turn-dot"></div>
+          <span id="onlineTurnText">Your turn</span>
+        </div>
+
+        <!-- How to Play button -->
+        <button onclick="toggleRulesOverlay()" id="rulesBtn" class="ghdr-rules-btn" title="How to play">
+          <span class="ghdr-rules-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </span>
+          <span class="ghdr-rules-label">How to play</span>
+        </button>
+
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           PLAYERS ROW: my name (left) vs opponent (right)
+           ══════════════════════════════════════════ -->
+      <div id="hdrPlayersBar" class="ghdr-players-row">
+
+        <!-- Me -->
+        <div class="ghdr-player ghdr-player-me">
+          <span class="ghdr-player-dot ghdr-dot-me"></span>
+          <span id="hdrPlayerName" class="ghdr-player-name ghdr-name-me"></span>
+        </div>
+
+        <!-- VS separator -->
+        <div class="ghdr-vs">vs</div>
+
+        <!-- Opponent -->
+        <div class="ghdr-player ghdr-player-opp">
+          <div id="hdrOpponentName" class="ghdr-player-name ghdr-name-opp" style="display:none;"></div>
+          <div id="hdrOpponentWaiting" class="ghdr-waiting">
+            <span class="ghdr-waiting-dots">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="ghdr-waiting-label">waiting</span>
+          </div>
+          <span class="ghdr-player-dot ghdr-dot-opp" id="hdrOppDot" style="opacity:0.25;"></span>
+        </div>
+
+      </div>
+
+    </div>
+    <div class="game-body">
+      <div class="game-players-strip" id="gamePlayersStrip" style="display:none;">
+        <div class="gps-player gps-clickable" id="gpsMyPlayer" onclick="openPlayerPopup('me')" style="cursor:pointer;">
+          <div class="gps-avatar gps-me" id="gpsMyAvatar">
+            <span id="gpsMyLetter">
+            ?
+            </span>
+            <div class="gps-online-ring">
+            </div>
+            <span class="gps-fr-badge" id="gps-fr-badge" style="display:none">
+            </span>
+          </div>
+          <div class="gps-info">
+            <div class="gps-name" id="gpsMyName">
+              You
+            </div>
+          </div>
+        </div>
+        <div class="gps-divider">
+          <span class="gps-amp">
+          &amp;
+          </span>
+        </div>
+        <div class="gps-player gps-right gps-clickable" id="gpsOppPlayer" onclick="openPlayerPopup('opp')" style="cursor:pointer;">
+          <div class="gps-avatar gps-opp" id="gpsOppAvatar">
+            <span id="gpsOppLetter">
+            ?
+            </span>
+          </div>
+          <div class="gps-info">
+            <div class="gps-name" id="gpsOppName">
+              -
+            </div>
+          </div>
+        </div>
+        <div id="gpsPlayerPopup" class="gps-popup" style="display:none;">
+          <div class="gps-popup-arrow" id="gpsPopupArrow">
+          </div>
+          <div class="gps-popup-inner">
+            <div class="gps-popup-header">
+              <div class="gps-popup-avatar" id="gpsPopupAvatar">
+                <span id="gpsPopupLetter">
+                ?
+                </span>
+              </div>
+              <div class="gps-popup-info">
+                <div class="gps-popup-name" id="gpsPopupName">
+                  -
+                </div>
+                <div class="gps-popup-status" id="gpsPopupStatus">
+                  -
+                </div>
+              </div>
+            </div>
+            <div class="gps-popup-btns" id="gpsPopupBtns">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="turnIndicator" style="display:none;">
+      </div>
+      <div id="waitingOpponent" style="display:none;">
+      </div>
+      <button class="card-collapsed-btn" id="cardCollapsedBtn" style="display:none;" onclick="toggleCardCollapse()">
+      <div class="ccb-left">
+        <div class="ccb-symbol" id="ccbSymbol">
+          ?
+        </div>
+        <span class="ccb-label">
+        Show question card
+        </span>
+      </div>
+      <span class="ccb-arrow">
+      ▼
+      </span>
+      </button>
+      <div class="offline-game-area" id="offlineGameArea">
+        <div class="offline-players-col" id="playersColLeft" style="display:none;">
+        </div>
+        <div class="card-scene" id="cardScene">
+          <div class="card-scene-inner">
+            <div class="card-3d" id="card3d" onclick="flipCard()">
+              <div class="card-face card-face-back" id="cardBackFace">
+                <div class="card-back-overlay">
+                  <div class="card-back-footer">
+                    <div class="card-divider-line" style="background:linear-gradient(90deg,transparent,rgba(80,255,120,0.25),transparent)">
+                    </div>
+                    <span class="card-logo-text" style="color:rgba(100,255,140,0.55)">
+                    Bond &amp; Awareness ™
+                    </span>
+                    <div class="card-divider-line" style="background:linear-gradient(90deg,transparent,rgba(80,255,120,0.25),transparent)">
+                    </div>
+                  </div>
+                </div>
+                <div id="tapHint" style="display:none">
+                </div>
+              </div>
+              <div class="card-face card-face-front" id="cardFrontFace">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="offline-players-col" id="playersColRight" style="display:none;">
+        </div>
+      </div>
+      <div class="answer-reveal-group" id="answerRevealGroup">
+        <button class="show-question-btn" id="showQuestionBtn" style="display:none;" onclick="toggleShowQuestion()">
+        <div class="sqb-header-row">
+          <div style="display:flex;align-items:center;gap:0.55rem;">
+            <div class="sqb-icon" id="sqbIcon">
+              ?
+            </div>
+            <span class="sqb-label-text" id="sqbLabelText">
+            Question
+            </span>
+          </div>
+          <span class="sqb-arrow" id="sqbArrow">
+          ▾
+          </span>
+        </div>
+        <div class="sqb-question-text" id="sqbQuestionText">
+        </div>
+        </button>
+        <div class="answers-section" id="answersSection">
+          <div class="chat-area" id="chatArea" style="display:none;">
+            <div id="myAnswerBox" class="opponent-answer-box" style="display:none;">
+              <div class="opp-answer-card">
+                <div class="opp-answer-corner-glow">
+                </div>
+                <div class="opp-answer-top">
+                  <div class="opp-avatar" id="myAnswerAvatar">
+                  </div>
+                  <div class="opp-answer-meta">
+                    <span class="opp-answer-name" id="myAnswerName">
+                    </span>
+                    <span class="opp-answer-tag">
+                    answered
+                    </span>
+                  </div>
+                  <span class="opp-answer-check">
+                  ✓
+                  </span>
+                </div>
+                <div class="opp-answer-body" id="myAnswerText">
+                </div>
+                <div class="opp-answer-shine">
+                </div>
+              </div>
+            </div>
+            <div id="typingIndicator" class="typing-indicator" style="display:none;">
+              <div class="typing-bubble">
+                <span>
+                </span>
+                <span>
+                </span>
+                <span>
+                </span>
+              </div>
+              <span class="typing-name" id="typingText">
+              typing…
+              </span>
+            </div>
+            <div id="opponentAnswerBox" class="opponent-answer-box" style="display:none;">
+              <div class="opp-answer-card">
+                <div class="opp-answer-corner-glow">
+                </div>
+                <div class="opp-answer-top">
+                  <div class="opp-avatar" id="oppAnswerAvatar">
+                  </div>
+                  <div class="opp-answer-meta">
+                    <span class="opp-answer-name" id="opponentAnswerName">
+                    </span>
+                    <span class="opp-answer-tag">
+                    answered
+                    </span>
+                  </div>
+                  <span class="opp-answer-check">
+                  ✓
+                  </span>
+                </div>
+                <div class="opp-answer-body" id="opponentAnswerText">
+                </div>
+                <div id="translatingSpinner" style="display:none;margin-top:0.3rem;align-items:center;gap:0.5rem;opacity:0.4;position:relative;z-index:1;">
+                  <div style="width:8px;height:8px;border:1.5px solid rgba(155,93,229,0.5);border-top-color:#9B5DE5;border-radius:50%;animation:spin 0.8s linear infinite;">
+                  </div>
+                </div>
+                <div class="opp-answer-shine">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="offlineAnswersContainer" style="display:none; flex-direction:column; gap:0.45rem;">
+          </div>
+        </div>
+        <button class="btn-next-q" id="btnNextQ" onclick="nextQuestion()" style="display:none; justify-content:center;">
+        <span class="btn-next-badge-wrap" id="nextBadgeWrap" style="display:none;">
+        <span class="btn-next-hint-label">
+        next
+        </span>
+        <span class="btn-next-ready-badge" id="nextReadyBadge">
+        0/2
+        </span>
+        </span>
+        <span class="btn-next-q-label">
+        Next question
+        </span>
+        </button>
+      </div>
+      <div class="answer-container" id="answerContainer">
+        <div class="answer-input-wrap" id="answerInputWrap">
+          <input type="text" class="answer-input" id="answerInput" placeholder="Reflect on this question…" onkeydown="if(event.key==='Enter')submitAnswer()"/>
+          <button class="btn-send" onclick="submitAnswer()">
+          ›
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="game-footer" id="gameFooter" style="display:none;">
+      <div class="players-bar" id="playersBar">
+        <div class="player-slot">
+          <span class="player-name active" id="player1Name">
+          You
+          </span>
+          <div class="player-dot active" id="player1Dot">
+          </div>
+        </div>
+        <div class="players-divider">
+        </div>
+        <div class="player-slot">
+          <div class="player-dot" id="player2Dot">
+          </div>
+          <span class="player-name" id="player2Name">
+          -
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="rulesOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(5,10,20,0.94);overflow-y:auto;background:rgba(10,15,20,0.82);">
+  <div style="max-width:420px;margin:0 auto;padding:2rem 1.5rem 4rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;">
+      <span id="rovHdr" style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;letter-spacing:0.08em;">
+      Before You Play
+      </span>
+      <button onclick="toggleRulesOverlay()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem;line-height:1;">
+      ✕
+      </button>
+    </div>
+    <div class="instructions-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);">
+      <div id="rovS4" class="inst-section-title">
+        🌀 How to Play
+      </div>
+      <p id="rovP4" class="inst-text">
+        The game moves
+        <strong>
+        clockwise
+        </strong>
+        around the circle.
+      </p>
+      <p id="rovTurn" class="inst-text">
+        <strong>
+        The Turn
+        </strong>
+        - Draw the top card. If it's a Question Card, read it aloud and share your honest answer.
+      </p>
+      <p id="rovListen" class="inst-text">
+        <strong>
+        The Art of Listening
+        </strong>
+        - While one person speaks, everyone else offers full, silent presence. Comments are not needed unless the speaker asks.
+      </p>
+      <div id="rovFruit" class="inst-highlight">
+        ⊹
+        <strong>
+        Personal Somatic Shift:
+        </strong>
+        If your card includes a small fruit symbol, wait until you have finished expressing your answer. Then gently bring your awareness to the body area mapped to that fruit (see the Body Map below). This awareness stays with you as the round continues.
+        <br>
+        <br>
+        ⊹
+        <strong>
+        Collective Pause:
+        </strong>
+        If a Large Fruit card appears, the entire group brings attention together to the body center shown on the Body Map.
+        <br>
+        <br>
+        ⊹
+        <strong>
+        The Spiral:
+        </strong>
+        If a big Spiral card appears, the group enters 15 seconds of silent full-body awareness, slowly scanning the body from head to toe.
+        <br>
+        <br>
+        ⊹ Let awareness remain in the body as the circle continues.
+      </div>
+      <div class="body-map-container">
+        <div class="body-map-card">
+          <img id="__bmi2__" src="" alt="Body Map — Fruits &amp; Body Centers" loading="lazy">
+        </div>
+      </div>
+      <hr class="inst-divider">
+      <div id="rovS5" class="inst-section-title">
+        🌸 The Spirit
+      </div>
+      <p id="rovP5" class="inst-text">
+        This is not a competition, but an unfolding.
+      </p>
+      <div id="rovResist" class="inst-highlight">
+        <strong>
+        On Resistance:
+        </strong>
+        If a question feels too personal, it is okay to pass. But notice that feeling - whatever you resist most has power over you. Leaning into resistance is often where the greatest freedom is found.
+      </div>
+    </div>
+  </div>
+</div>
+<div id="fruitSyncModal" class="fruit-sync-modal-wrap" style="display:none;">
+  <div class="fruit-sync-box" id="fruitSyncBox">
+    <div class="fruit-sync-icon" id="fruitSyncIcon">
+      🍉
+    </div>
+    <div class="fruit-sync-title" id="fruitSyncTitle">
+      Fruit Sync!
+    </div>
+    <div class="fruit-sync-sub" id="fruitSyncSub">
+      Choose who answers this question
+    </div>
+    <div class="fruit-sync-players" id="fruitSyncPlayers">
+    </div>
+  </div>
+</div>
+<div id="unlock" class="screen">
+  <canvas id="unlockCanvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;">
+  </canvas>
+  <div class="unlock-inner">
+    <div class="page-header" style="position:relative;z-index:2;padding:1.5rem 1.5rem 0;">
+      <span class="page-title-text">
+      Full Journey
+      </span>
+      <div style="width:40px;">
+      </div>
+    </div>
+    <div class="unlock-content">
+      <div class="unlock-pill">
+        💜 Support Bond & Awareness
+      </div>
+      <h2 class="unlock-title">
+        Unlock Full
+        <br>
+        Journey
+      </h2>
+      <p class="unlock-desc">
+        Enter your access code to explore 400+ additional deep questions. Donate via Ko-fi and receive your personal unlock code.
+      </p>
+      <a href="https://ko-fi.com/bondawareness" target="_blank" class="btn-support">
+      Support & Learn More 💜
+      </a>
+      <p class="unlock-desc" style="font-size:0.75rem;opacity:0.6;">
+        Already donated? Enter your code below
+      </p>
+      <input type="text" class="unlock-code-field" id="unlockCodeInput" placeholder="Enter your unlock code" autocomplete="off"/>
+      <div id="unlockError" class="unlock-error" style="display:none;">
+        Invalid code. Please check and try again.
+      </div>
+      <button class="btn-unlock" onclick="tryUnlock()">
+      Unlock ✦
+      </button>
+      <button class="btn-outline" onclick="goTo('print-deck')" style="margin-top:0.8rem;width:100%;border-color:rgba(255,193,7,0.25);color:rgba(255,193,7,0.8);">
+      <span class="btn-svg-icon" style="color:rgba(255,193,7,0.8);">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 6 2 18 2 18 9"/>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+        <rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      </span>
+      <span class="btn-label-text">
+      Print the Deck
+      </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="garden-modal" id="garden-modal" onclick="gardenCloseModal(event)">
+  <div class="gm-card">
+    <canvas class="gm-bg" id="gm-bg">
+    </canvas>
+    <canvas class="gm-fruit" id="gm-fruit">
+    </canvas>
+    <div class="gm-footer">
+      <div class="gm-name" id="gm-name">
+      </div>
+    </div>
+  </div>
+  <button class="gm-close" onclick="gardenCloseModal()">
+  ×
+  </button>
+</div>
+<div class="session-summary-overlay" id="sessionSummaryOverlay">
+  <div class="session-summary-card" id="sessionSummaryCard">
+    <div class="ss-header">
+      <span class="ss-icon">
+      ✦
+      </span>
+      <h2 class="ss-title">
+        Session Complete
+      </h2>
+      <p class="ss-subtitle">
+        20 minutes of connection
+      </p>
+    </div>
+    <div class="ss-divider">
+    </div>
+    <p class="ss-section-label">
+      Who was here
+    </p>
+    <div class="ss-participants" id="ssParticipants">
+    </div>
+    <div class="ss-thoughts-feed" id="ssThoughtsFeed" style="display:none;">
+    </div>
+    <div class="ss-thoughts-area">
+      <button class="ss-share-btn" id="ssShareBtn" onclick="ssToggleThoughts()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Share Final Thoughts
+      </button>
+      <textarea
+        class="ss-thoughts-input"
+        id="ssThoughtsInput"
+        placeholder="What are you taking from this session…"
+        maxlength="300"
+        oninput="ssOnInput()"
+      >
+      </textarea>
+      <button class="ss-send-btn" id="ssSendBtn" onclick="ssSendThought()">
+      Send to everyone →
+      </button>
+      <p class="ss-sent-msg" id="ssSentMsg">
+        ✓ Your thought has been shared
+      </p>
+    </div>
+    <div class="ss-footer">
+      <button class="ss-btn-continue" onclick="ssCloseSummary()">
+      Continue Session
+      </button>
+      <button class="ss-btn-home" onclick="ssGoHome()">
+      Back to Home
+      </button>
+    </div>
+  </div>
+</div>
+<div id="friendInviteBanner">
+  <div class="fib-card">
+    <div class="fib-avatar" id="fib-avatar">
+      ?
+    </div>
+    <div class="fib-text">
+      <div class="fib-title" id="fib-title">
+        wants to play with you
+      </div>
+      <div class="fib-sub" id="fib-sub">
+        Tap Accept to join their room
+      </div>
+    </div>
+    <div class="fib-btns">
+      <button class="fib-accept" id="fib-accept-btn" onclick="acceptFriendInvite()">
+      Accept
+      </button>
+      <button class="fib-dismiss" onclick="dismissFriendInvite()">
+      ✕
+      </button>
+    </div>
+  </div>
+</div>
+<div id="friendProfileSheet" onclick="if(event.target===this)closeFriendProfile()">
+  <div class="fps-box">
+    <div class="fps-handle">
+      <div class="fps-handle-bar">
+      </div>
+    </div>
+    <div class="fps-header">
+      <div class="fps-avatar" id="fps-avatar">
+        ?
+      </div>
+      <div>
+        <div class="fps-name" id="fps-name">
+          —
+        </div>
+        <div class="fps-meta" id="fps-meta">
+          Friend
+        </div>
+      </div>
+    </div>
+    <div class="fps-stats">
+      <div class="fps-stat">
+        <div class="fps-stat-num" id="fps-sessions">
+          0
+        </div>
+        <div class="fps-stat-label">
+          Sessions
+        </div>
+      </div>
+      <div class="fps-stat">
+        <div class="fps-stat-num" id="fps-questions">
+          0
+        </div>
+        <div class="fps-stat-label">
+          Questions
+        </div>
+      </div>
+    </div>
+    <div class="fps-bio" id="fps-bio" style="display:none;">
+    </div>
+    <div class="fps-actions">
+      <button class="fps-play-btn" id="fps-play-btn" onclick="fpsSendInvite()">
+      ▶ Invite to play
+      </button>
+      <button class="fps-remove-btn" id="fps-remove-btn" onclick="fpsRemoveFriend()">
+      Remove friend
+      </button>
+    </div>
+  </div>
+</div>
+<div id="friendsOverlay" onclick="if(event.target===this)closeFriendsOverlay()" style="
+  position:fixed;inset:0;z-index:3000;
+  background:rgba(0,0,0,0.45);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.22s ease;
+">
+  <div id="friendsOverlayBox" style="
+    width:100%;max-width:480px;
+    background:#ffffff;
+    border-radius:22px 22px 0 0;
+    max-height:82vh;
+    display:flex;flex-direction:column;
+    transform:translateY(100%);
+    transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
+    overflow:hidden;
+  ">
+    <div style="display:flex;justify-content:center;padding:0.7rem 0 0;">
+      <div style="width:38px;height:4px;background:rgba(0,0,0,0.12);border-radius:99px;">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;padding:0.7rem 1.4rem 0.5rem;border-bottom:1px solid rgba(0,0,0,0.07);">
+      <span style="font-family:'Cormorant Garamond',serif;font-size:1.25rem;font-weight:400;color:rgba(0,0,0,0.75);letter-spacing:0.04em;">
+      Friends
+      </span>
+      <button onclick="closeFriendsOverlay()" style="margin-left:auto;background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.1);border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:0.85rem;color:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;">
+      ✕
+      </button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid rgba(0,0,0,0.07);flex-shrink:0;">
+      <button id="fo-tab-friends" onclick="switchFoTab('friends')" style="flex:1;padding:0.65rem;background:none;border:none;border-bottom:2px solid #1B9AAA;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:500;color:rgba(0,0,0,0.75);cursor:pointer;transition: opacity 0.15s ease, transform 0.15s ease;margin-bottom:-1px;">
+      Friends
+      </button>
+      <button id="fo-tab-requests" onclick="switchFoTab('requests')" style="flex:1;padding:0.65rem;background:none;border:none;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;font-size:0.78rem;color:rgba(0,0,0,0.35);cursor:pointer;transition: opacity 0.15s ease, transform 0.15s ease;margin-bottom:-1px;position:relative;">
+      Requests
+      <span id="fo-requests-badge" style="display:none;position:absolute;top:8px;right:18px;min-width:16px;height:16px;background:#ef4444;border-radius:99px;font-size:0.58rem;font-weight:700;color:white;align-items:center;justify-content:center;padding:0 3px;font-family:'DM Sans',sans-serif;line-height:1;">
+      </span>
+      </button>
+    </div>
+    <div id="fo-body" style="flex:1;overflow-y:auto;">
+    </div>
+    <div style="padding:0.75rem 1.4rem;border-top:1px solid rgba(0,0,0,0.06);text-align:center;">
+      <button onclick="closeFriendsOverlay();goTo('social')" style="background:none;border:none;font-family:'DM Sans',sans-serif;font-size:0.75rem;color:#1B9AAA;cursor:pointer;letter-spacing:0.02em;">
+      Discover people →
+      </button>
+    </div>
+  </div>
+</div>
+<div id="profileOverlay" onclick="if(event.target===this)closeProfileOverlay()">
+  <div id="profileOverlayBox">
+    <button id="profileOverlayClose" onclick="closeProfileOverlay()">
+    ✕
+    </button>
+    <div id="profileOverlayContent">
+    </div>
+  </div>
+</div>
+<div id="global-bg">
+</div>
+<canvas id="globalSpiralCanvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1;will-change:transform;">
+</canvas>
+<div id="letsplay-wrapper" style="
+  position:fixed;
+  top:50%; left:50%;
+  width:180px; height:240px;
+  transform: translate(-50%, -50%);
+  border-radius:18px;
+  z-index:5;
+  pointer-events:none;
+  will-change:transform;
+  opacity:0;
+  animation: _letsplayFadeIn 0.9s ease 0.75s both;
+">
+  <button id="letsplay-circle" style="
+    position:absolute; inset:0;
+    border-radius:18px;
+    border:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.2rem;
+    cursor:pointer;
+    pointer-events:auto;
+    overflow:hidden;
+  ">
+  <canvas id="letsplay-spiral-canvas" style="position:absolute;inset:0;width:100%;height:100%;border-radius:18px;opacity:1;z-index:0;">
+  </canvas>
+  <div style="position:absolute;top:90px;left:90px;transform:translate(-50%,-50%);width:78px;height:78px;z-index:2;pointer-events:none;">
+    <div class="lp-radar-ring">
+    </div>
+    <div class="lp-radar-ring lp-radar-ring-2">
+    </div>
+    <div class="lp-radar-ring lp-radar-ring-3">
+    </div>
+  </div>
+  <span style="position:absolute;bottom:12px;left:0;right:0;text-align:center;z-index:3;font-family:'Caveat',cursive;font-size:1.65rem;font-weight:600;letter-spacing:0.04em;color:rgba(235,225,200,0.95);text-transform:none;text-shadow:0 1px 8px rgba(0,0,0,0.6);">
+  Let's Play
+  </span>
+  </button>
+</div>
+<style>
+  .lp-radar-ring {
+    position:absolute;
+    inset:0;
+    border:1.5px solid rgba(180,150,60,0.80);
+    border-radius:50%;
+    opacity:0;
+    animation:lpRadarPulse 4s ease-out infinite
+  }
+  .lp-radar-ring-2 {
+    animation-delay:1.33s
+  }
+  .lp-radar-ring-3 {
+    animation-delay:2.66s
+  }
+  @keyframes lpRadarPulse {
+    0% {
+      transform:scale(0.2);
+      opacity:0.9;
+      border-color:rgba(255,210,80,0.95)
+    }
+    60% {
+      border-color:rgba(220,170,50,0.5)
+    }
+    100% {
+      transform:scale(2.8);
+      opacity:0;
+      border-color:rgba(200,150,30,0)
+    }
+  }
+  @keyframes circleReveal {
+    from {
+      clip-path:inset(35% 10% 35% 10% round 28px)
+    }
+    to {
+      clip-path:inset(0% 0% 0% 0% round 0px)
+    }
+  }
+  #auth-screen.circle-reveal {
+    animation:circleReveal 0.55s cubic-bezier(0.4,0,0.2,1) forwards
+  }
+</style>
+
+<div id="waitingBadge" class="waiting-badge" style="display:none;">
+  <div class="waiting-badge-text">
+    <span class="waiting-badge-title" id="waitingBadgeTitle">
+    in cerca di qualcuno
+    </span>
+  </div>
+</div>
+<button id="globalBackBtn" style="display:none;position:fixed;top:1rem;left:1.4rem;z-index:20000;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.75);font-size:1.3rem;cursor:pointer;align-items:center;justify-content:center;transition:background 0.2s ease,opacity 0.25s ease;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="15 18 9 12 15 6"/>
+</svg>
+</button>
+<button id="dbgBtn" onclick="if(typeof window.overlay==='function')window.overlay();" style="
+  position:fixed;
+  bottom:14px;
+  right:14px;
+  z-index:2147483646;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.3);
+  font-family:monospace;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.04em;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  transition:opacity 0.2s;
+  pointer-events:auto;
+  user-select:none;
+  -webkit-user-select:none;
+">
+dbg
+</button>
+
+<!-- body-map image: host externally and set src via JS -->
+
+<!-- ── Invite / Join panel ── -->
+<div id="invitePanel">
+  <div class="invite-box">
+    <button class="invite-close" onclick="window._closeInvitePanel()">✕</button>
+    <div class="invite-title">Invite a Friend</div>
+    <div class="invite-tabs" style="display:none;">
+      <button class="invite-tab active" id="invTabCreate" onclick="window._inviteTab('create')">Create Room</button>
+      <button class="invite-tab" id="invTabJoin" onclick="window._inviteTab('join')">Join Room</button>
+    </div>
+    <!-- CREATE pane -->
+    <div class="invite-pane active" id="invPaneCreate">
+      <div id="invCreating" class="invite-generating">
+        <span class="invite-gen-dot"></span>
+        <span class="invite-gen-dot"></span>
+        <span class="invite-gen-dot"></span>
+        <span style="margin-left:0.3rem;">Generating room…</span>
+      </div>
+      <div id="invReady" style="display:none;width:100%;display:none;flex-direction:column;align-items:center;gap:0.9rem;">
+        <div class="invite-room-code" id="invRoomCode">——</div>
+        <div class="invite-qr" id="invQR"></div>
+        <div class="invite-link-row">
+          <span class="invite-link-text" id="invLinkText"></span>
+          <button class="invite-copy-btn" onclick="window._copyInviteLink()">Copy link</button>
+        </div>
+        <button class="invite-copy-btn" style="width:100%;padding:0.55rem;" onclick="window._copyRoomCode()">📋 Copy code</button>
+      </div>
+    </div>
+    <!-- JOIN pane -->
+    <div class="invite-pane" id="invPaneJoin">
+      <input class="invite-join-input" id="invJoinInput" type="text" maxlength="6" placeholder="enter code" autocomplete="off" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+      <button class="invite-join-btn" onclick="window._joinRoomByCode()">Join →</button>
+      <div class="invite-error" id="invJoinError"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Match found toast ── -->
+<div id="matchToast">🌐 Match found! Switching to online…</div>
+
+<!-- Bell reminder -->
+<script src="js/bell.js"></script>
+<!-- Main app (all game logic) -->
+<script src="js/app.js"></script>
+<!-- Garden / collection -->
+<script src="js/garden.js"></script>
+<!-- Let's Play glow animation -->
+<script src="js/letsplay-glow.js"></script>
+<!-- Invite panel (second IIFE) -->
+<script src="js/invite-panel.js"></script>
+</body>
+</html>
