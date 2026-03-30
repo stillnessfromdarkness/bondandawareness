@@ -1,0 +1,290 @@
+/* ═══════════════════════════════════════════════════
+   ENHANCEMENTS — UI/UX, Gameplay, Performance
+   Bond & Awareness v2
+   ═══════════════════════════════════════════════════ */
+
+/* ── PERFORMANCE: GPU acceleration for key elements ── */
+.card-3d,
+.card-face,
+.card-scene,
+.screen.active,
+.screen.entering,
+.screen.exit {
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Reduce paint on static canvases */
+canvas {
+  contain: strict;
+}
+
+/* ── CARD: enhanced flip with spring-like bounce ── */
+.card-3d {
+  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.card-3d.is-flipped {
+  transform: rotateY(180deg) !important;
+}
+
+/* Card entrance pulse */
+@keyframes cardEntrance {
+  0% { transform: scale(0.92); opacity: 0; filter: blur(4px); }
+  60% { transform: scale(1.02); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+.card-scene:not(.swipe-in-right):not(.swipe-in-left) .card-3d:not(.is-flipped) {
+  animation: cardEntrance 0.5s ease-out;
+}
+
+/* ── Card tap feedback glow ── */
+.card-3d:active {
+  filter: brightness(1.08);
+  transition: filter 0.08s ease !important;
+}
+
+/* ── SWIPE: smoother card transitions ── */
+.card-scene.swipe-in-right .card-3d {
+  animation: swipeRight 0.38s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+.card-scene.swipe-in-left .card-3d {
+  animation: swipeLeft 0.38s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+@keyframes swipeRight {
+  0% { transform: translateX(80px) scale(0.9); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes swipeLeft {
+  0% { transform: translateX(-80px) scale(0.9); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* ── GAMEPLAY: Question progress indicator ── */
+.question-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.04);
+  z-index: 50;
+  overflow: hidden;
+}
+.question-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1B9AAA, #48CAE4, #9B5DE5);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 0 1px 1px 0;
+  box-shadow: 0 0 8px rgba(72,202,228,0.4);
+}
+
+/* ── GAMEPLAY: Question counter badge ── */
+.question-counter {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: rgba(72,202,228,0.45);
+  text-transform: uppercase;
+  z-index: 51;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ── ANSWER INPUT: improved focus state ── */
+.answer-input:focus {
+  border-color: rgba(72,202,228,0.5) !important;
+  box-shadow: 0 0 0 2px rgba(72,202,228,0.12), 0 0 20px rgba(72,202,228,0.08) !important;
+  background: rgba(255,255,255,0.06) !important;
+  transition: all 0.25s ease !important;
+}
+
+/* Send button entrance */
+.btn-send {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease !important;
+}
+.btn-send:active {
+  transform: scale(0.85) !important;
+}
+
+/* ── GAMEPLAY: Answer submitted pulse ── */
+@keyframes answerPulse {
+  0% { box-shadow: 0 0 0 0 rgba(72,202,228,0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(72,202,228,0); }
+  100% { box-shadow: 0 0 0 0 rgba(72,202,228,0); }
+}
+.answer-sent-pulse {
+  animation: answerPulse 0.6s ease-out;
+}
+
+/* ── Next question button: improved feel ── */
+.btn-next-q {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+.btn-next-q:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(72,202,228,0.2) !important;
+}
+.btn-next-q:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
+/* ── GAMEPLAY: Session timer ring ── */
+.session-timer {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+  right: 1rem;
+  width: 38px;
+  height: 38px;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+}
+.session-timer svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.session-timer-track {
+  fill: none;
+  stroke: rgba(255,255,255,0.06);
+  stroke-width: 2.5;
+}
+.session-timer-fill {
+  fill: none;
+  stroke: #48CAE4;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.session-timer-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.02em;
+}
+
+/* When game is active, show the timer more */
+#game.active .session-timer {
+  opacity: 0.55;
+}
+#game.active .session-timer:hover {
+  opacity: 0.85;
+}
+
+/* ── UI: Opponent answer reveal animation ── */
+@keyframes answerReveal {
+  0% { 
+    transform: translateY(12px) scale(0.96); 
+    opacity: 0;
+    filter: blur(3px);
+  }
+  100% { 
+    transform: translateY(0) scale(1); 
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.opponent-answer-box {
+  animation: answerReveal 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── UI: Typing indicator improved ── */
+.typing-indicator {
+  animation: answerReveal 0.3s ease-out;
+}
+
+/* ── UI: Toast notifications improved ── */
+.toast {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* ── UI: Mode selection buttons — tactile feedback ── */
+.mode-card:active,
+.lang-btn:active,
+.btn-primary:active {
+  transform: scale(0.96) !important;
+  transition: transform 0.1s ease !important;
+}
+
+/* ── PERFORMANCE: Reduce animation on prefer-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .card-3d {
+    transition-duration: 0.15s !important;
+  }
+  .card-scene.swipe-in-right .card-3d,
+  .card-scene.swipe-in-left .card-3d {
+    animation-duration: 0.15s !important;
+  }
+  .opponent-answer-box,
+  .typing-indicator {
+    animation: none !important;
+  }
+  canvas {
+    display: none !important;
+  }
+  .question-progress-fill {
+    transition-duration: 0.1s !important;
+  }
+}
+
+/* ── PERFORMANCE: Low power / battery saver ── */
+@media (prefers-reduced-motion: reduce), (hover: none) and (pointer: coarse) {
+  .card-3d:not(.is-flipped):not(.dragging):hover {
+    transform: none !important;
+  }
+}
+
+/* ── UI: Better offline player chips ── */
+.offline-player-chip.active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  transform: scale(1.08);
+}
+
+/* ── GAMEPLAY: Fruit sync celebration ── */
+@keyframes fruitPop {
+  0% { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+  50% { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.fruit-sync-icon {
+  animation: fruitPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── UI: Smooth scroll for instructions ── */
+.instructions-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ── UI: Welcome screen — stagger entrance ── */
+#welcome.active .welcome-tagline {
+  animation: fadeSlideUp 0.6s ease-out 0.1s both;
+}
+#welcome.active .welcome-title {
+  animation: fadeSlideUp 0.6s ease-out 0.2s both;
+}
+#welcome.active .welcome-subtitle {
+  animation: fadeSlideUp 0.6s ease-out 0.3s both;
+}
+
+@keyframes fadeSlideUp {
+  0% { transform: translateY(16px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
